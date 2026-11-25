@@ -70,6 +70,19 @@ final class ProcessExecutorTest extends TestCase
     }
 
     #[Test]
+    public function executeDrainsLargeStderrWithoutDeadlock(): void
+    {
+        // 256 KiB on stderr overflows the pipe buffer; sequential reads would block forever.
+        $script = 'fwrite(STDERR, str_repeat("e", 262144)); echo "done";';
+
+        $result = $this->executor->execute('php-noisy', ['php', '-r', $script]);
+
+        $this->assertSame(0, $result->exitCode);
+        $this->assertSame('done', $result->stdout);
+        $this->assertSame(262144, \strlen($result->stderr));
+    }
+
+    #[Test]
     public function resolveBinaryFindsLocalVendorBin(): void
     {
         // phpunit is installed as a dev dependency — vendor/bin/phpunit must exist

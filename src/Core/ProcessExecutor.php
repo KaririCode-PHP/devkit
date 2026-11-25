@@ -58,8 +58,7 @@ final readonly class ProcessExecutor
 
         fclose($pipes[0]);
 
-        $stdout = (string) stream_get_contents($pipes[1]);
-        $stderr = (string) stream_get_contents($pipes[2]);
+        [$stdout, $stderr] = $this->drain($pipes[1], $pipes[2]);
 
         fclose($pipes[1]);
         fclose($pipes[2]);
@@ -106,5 +105,50 @@ final readonly class ProcessExecutor
         }
 
         return null;
+    }
+
+    /**
+     * Read stdout and stderr concurrently until both reach EOF.
+     *
+     * Reading one pipe to EOF before the other deadlocks as soon as the child
+     * fills the second pipe's buffer (64 KiB on Linux): the child blocks on
+     * write while the parent blocks on read. Multiplexing with stream_select()
+     * keeps both pipes flowing.
+     *
+     * @param resource $stdoutPipe
+     * @param resource $stderrPipe
+     * @return array{string, string}
+     */
+    private function drain($stdoutPipe, $stderrPipe): array
+    {
+        stream_set_blocking($stdoutPipe, false);
+        stream_set_blocking($stderrPipe, false);
+
+        $buffers = ['stdout' => '', 'stderr' => ''];
+        $open = ['stdout' => $stdoutPipe, 'stderr' => $stderrPipe];
+
+        while ([] !== $open) {
+            $read = array_values($open);
+            $write = null;
+            $except = null;
+
+            if (false === stream_select($read, $write, $except, 1)) {
+                break;
+            }
+
+            foreach ($open as $name => $pipe) {
+                $chunk = fread($pipe, 8192);
+
+                if (\is_string($chunk) && '' !== $chunk) {
+                    $buffers[$name] .= $chunk;
+                }
+
+                if (feof($pipe)) {
+                    unset($open[$name]);
+                }
+            }
+        }
+
+        return [$buffers['stdout'], $buffers['stderr']];
     }
 }
