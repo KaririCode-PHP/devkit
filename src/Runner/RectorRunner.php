@@ -7,7 +7,7 @@ namespace KaririCode\Devkit\Runner;
 use Override;
 
 /**
- * Runs Rector with the generated `.kcode/rector.php`.
+ * Runs Rector with the root config when present, else the generated `.kcode/rector.php`.
  *
  * Default mode is `--dry-run`. Pass `--no-dry-run` via arguments to apply.
  *
@@ -33,7 +33,7 @@ final class RectorRunner extends AbstractToolRunner
         return [
             'process',
             '--config',
-            $this->context->configPath('rector.php'),
+            $this->configFile('rector.php', 'rector.php'),
             '--dry-run',
             '--ansi',
         ];

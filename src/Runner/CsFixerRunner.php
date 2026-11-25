@@ -7,7 +7,7 @@ namespace KaririCode\Devkit\Runner;
 use Override;
 
 /**
- * Runs PHP-CS-Fixer with the generated `.kcode/php-cs-fixer.php`.
+ * Runs PHP-CS-Fixer with the root config when present, else the generated `.kcode/php-cs-fixer.php`.
  *
  * Default mode is `fix`. Pass `--dry-run` for check-only.
  *
@@ -33,7 +33,7 @@ final class CsFixerRunner extends AbstractToolRunner
         return [
             'fix',
             '--config',
-            $this->context->configPath('php-cs-fixer.php'),
+            $this->configFile('php-cs-fixer.php', '.php-cs-fixer.php', '.php-cs-fixer.dist.php'),
             '--diff',
             '--ansi',
         ];

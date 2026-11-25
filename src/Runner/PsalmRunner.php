@@ -7,7 +7,7 @@ namespace KaririCode\Devkit\Runner;
 use Override;
 
 /**
- * Runs Psalm with the generated `.kcode/psalm.xml`.
+ * Runs Psalm with the root config when present, else the generated `.kcode/psalm.xml`.
  *
  * @since 1.0.0
  */
@@ -30,7 +30,7 @@ final class PsalmRunner extends AbstractToolRunner
     {
         return [
             '--config',
-            $this->context->configPath('psalm.xml'),
+            $this->configFile('psalm.xml', 'psalm.xml', 'psalm.xml.dist'),
             '--no-progress',
             '--show-info=false',
         ];

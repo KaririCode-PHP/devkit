@@ -71,6 +71,10 @@ abstract class KcodeTestCase extends TestCase
             'KCODE_FAKE_DOCKER_LOG' => $this->dockerLog,
             'KCODE_FAKE_COMPOSER_LOG' => $this->composerLog,
             'KCODE_FAKE_RUNNING' => $this->sandbox . '/running',
+            // Isolate from the caller's settings; tests opt in explicitly.
+            'KCODE_NO_PROVISION' => '',
+            'KCODE_DOCKER' => '',
+            'XDEBUG_MODE' => '',
             'NO_COLOR' => '1',
         ], $environment);
 

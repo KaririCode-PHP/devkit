@@ -68,4 +68,27 @@ abstract class AbstractToolRunner implements ToolRunner
     {
         return $this->resolvedBinary ??= $this->executor->resolveBinary($this->vendorBin());
     }
+
+    /**
+     * Configuration file the tool should use.
+     *
+     * A configuration committed at the project root wins over the generated
+     * one: components that keep root configs (KaririCode Spec V4.3.3 §31)
+     * run with them, while their tools still come from `.kcode/vendor/`.
+     * Candidates are checked in order, mirroring each tool's own lookup.
+     *
+     * @since 1.2.0
+     */
+    protected function configFile(string $generated, string ...$rootCandidates): string
+    {
+        foreach ($rootCandidates as $candidate) {
+            $path = $this->context->rootPath($candidate);
+
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return $this->context->configPath($generated);
+    }
 }

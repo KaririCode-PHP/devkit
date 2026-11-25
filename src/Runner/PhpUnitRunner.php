@@ -14,7 +14,7 @@ use KaririCode\Devkit\ValueObject\ToolResult;
 use Override;
 
 /**
- * Runs PHPUnit with the generated `.kcode/phpunit.xml.dist`.
+ * Runs PHPUnit with the root config when present, else the generated `.kcode/phpunit.xml.dist`.
  *
  * The generated configuration declares coverage reports. PHPUnit refuses
  * to run any test when such a report is configured and no coverage driver
@@ -89,7 +89,7 @@ final class PhpUnitRunner extends AbstractToolRunner
     {
         return [
             '--configuration',
-            $this->context->configPath('phpunit.xml.dist'),
+            $this->configFile('phpunit.xml.dist', 'phpunit.xml', 'phpunit.xml.dist'),
             '--testdox',
             '--colors=always',
         ];

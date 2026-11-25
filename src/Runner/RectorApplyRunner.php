@@ -34,7 +34,7 @@ final class RectorApplyRunner extends AbstractToolRunner
         return [
             'process',
             '--config',
-            $this->context->configPath('rector.php'),
+            $this->configFile('rector.php', 'rector.php'),
             '--ansi',
         ];
     }

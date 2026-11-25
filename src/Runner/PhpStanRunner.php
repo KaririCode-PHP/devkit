@@ -7,7 +7,7 @@ namespace KaririCode\Devkit\Runner;
 use Override;
 
 /**
- * Runs PHPStan with the generated `.kcode/phpstan.neon`.
+ * Runs PHPStan with the root config when present, else the generated `.kcode/phpstan.neon`.
  *
  * @since 1.0.0
  */
@@ -31,7 +31,7 @@ final class PhpStanRunner extends AbstractToolRunner
         return [
             'analyse',
             '--configuration',
-            $this->context->configPath('phpstan.neon'),
+            $this->configFile('phpstan.neon', 'phpstan.neon', 'phpstan.neon.dist', 'phpstan.dist.neon'),
             '--no-progress',
             '--memory-limit=1G',
         ];
