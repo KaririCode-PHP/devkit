@@ -6,7 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ---
 
-## [1.2.0] — Unreleased
+## [Unreleased]
+
+---
+
+## [1.2.0] — 2026-11-25
 
 Components no longer carry QA dependencies or Docker files: a globally installed `kcode` provisions the toolchain on demand and runs it on the host or in one generated PHP container.
 
@@ -148,7 +152,8 @@ First tagged release of the CLI toolchain. It combines the initial feature set (
 
 ---
 
-[1.2.0]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/KaririCode-PHP/devkit/compare/v1.0.1...v1.1.2
