@@ -132,7 +132,10 @@ abstract class KcodeTestCase extends TestCase
             SH);
     }
 
-    /** Stand-in composer: logs every call and creates the autoloader `install` would write. */
+    /**
+     * Stand-in composer: logs every call and creates what `install` would write.
+     * In `.kcode/` it also creates tool stubs that print their name and arguments.
+     */
     private function writeFakeComposer(): void
     {
         $this->writeScript('composer', <<<'SH'
@@ -145,7 +148,15 @@ abstract class KcodeTestCase extends TestCase
             if [ "$1" = "install" ]; then
               mkdir -p "$target/vendor/bin"
               echo '<?php' > "$target/vendor/autoload.php"
-              case "$target" in *.kcode) echo '{"packages": []}' > "$target/composer.lock" ;; esac
+              case "$target" in
+                *.kcode)
+                  [ -f "$target/composer.lock" ] || echo '{"packages": [], "content-hash": "resolved"}' > "$target/composer.lock"
+                  for tool in phpunit phpstan psalm php-cs-fixer rector infection; do
+                    printf '#!/bin/sh\necho "%s $*"\n' "$tool" > "$target/vendor/bin/$tool"
+                    chmod +x "$target/vendor/bin/$tool"
+                  done
+                  ;;
+              esac
             fi
             exit 0
             SH);

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace KaririCode\Devkit\Core;
 
+use Closure;
+
 use const DIRECTORY_SEPARATOR;
 use const FILE_APPEND;
 
@@ -14,6 +16,8 @@ use KaririCode\Devkit\Exception\DevkitException;
 use KaririCode\Devkit\ValueObject\QualityReport;
 use KaririCode\Devkit\ValueObject\ToolResult;
 
+use const LOCK_EX;
+use const LOCK_UN;
 use const PHP_EOL;
 
 use RecursiveDirectoryIterator;
@@ -31,7 +35,9 @@ use SplFileInfo;
  */
 final class Devkit
 {
-    private const string VERSION = '1.0.0';
+    private const string VERSION = '1.2.0';
+
+    private const string NO_PROVISION_VARIABLE = 'KCODE_NO_PROVISION';
 
     private ?ProjectContext $context = null;
     private ?ProcessExecutor $executor = null;
@@ -42,11 +48,14 @@ final class Devkit
     /** @var array<string, ToolRunner> */
     private array $runners = [];
 
+    private readonly ToolchainState $state;
+
     public function __construct(
         private readonly ProjectDetector $detector,
         private readonly ComposerResolver $composerResolver = new ComposerResolver(),
         private readonly ProjectLocator $locator = new ProjectLocator(),
     ) {
+        $this->state = new ToolchainState(self::VERSION);
     }
 
     public static function version(): string
@@ -105,6 +114,7 @@ final class Devkit
         }
 
         $this->appendGitIgnore($context);
+        $this->state->recordConfigs($context);
 
         return $count;
     }
@@ -117,6 +127,11 @@ final class Devkit
      * at `.kcode/vendor/bin/` for Tier-1 binary resolution. In container mode
      * Composer runs inside the PHP container, so platform checks match the
      * PHP that will execute the tools.
+     *
+     * Version pinning: when the project commits a `devkit.lock`, it is copied
+     * to `.kcode/composer.lock` first, so every machine installs the exact
+     * same tool versions. Without it, a lock left by a previous install is
+     * dropped when the manifest changed, so new constraints resolve again.
      *
      * Output streams live to the user's terminal.
      *
@@ -140,7 +155,9 @@ final class Devkit
             return $containerExitCode;
         }
 
-        return $executor->passthru([
+        $this->prepareToolsLock($context);
+
+        $exitCode = $executor->passthru([
             $this->composerBinary(),
             'install',
             '--working-dir=' . $context->devkitDir,
@@ -149,6 +166,60 @@ final class Devkit
             '--optimize-autoloader',
             '--no-scripts',
         ]);
+
+        if (0 === $exitCode) {
+            $this->state->recordTools($context);
+        }
+
+        return $exitCode;
+    }
+
+    /**
+     * Install the project's own dependencies (`composer install` at the root).
+     *
+     * Tests bootstrap `vendor/autoload.php`; a fresh clone does not have it.
+     *
+     * @return int Composer exit code (0 = success)
+     *
+     * @since 1.2.0
+     */
+    public function installProjectDependencies(): int
+    {
+        $executor = $this->executor();
+        $containerExitCode = $executor->ensureContainer();
+
+        if (0 !== $containerExitCode) {
+            return $containerExitCode;
+        }
+
+        return $executor->passthru([
+            $this->composerBinary(),
+            'install',
+            '--working-dir=' . $this->context()->projectRoot,
+            '--no-interaction',
+            '--no-progress',
+        ]);
+    }
+
+    /**
+     * Pin the installed toolchain: copy `.kcode/composer.lock` to `devkit.lock`.
+     *
+     * @return bool False when no toolchain has been installed yet
+     *
+     * @since 1.2.0
+     */
+    public function lockTools(): bool
+    {
+        $context = $this->context();
+        $installedLock = $context->configPath('composer.lock');
+
+        if (! is_file($installedLock) || ! copy($installedLock, $context->rootPath(ToolchainState::LOCK_FILE))) {
+            return false;
+        }
+
+        $this->state->recordTools($context);
+
+        return true;
     }
 
     // ── Execution environment ─────────────────────────────────────
@@ -189,15 +260,56 @@ final class Devkit
     }
 
     /**
-     * Prepare the execution environment before a tool command runs.
+     * Prepare everything a tool command needs, then return.
      *
+     * Inside a KaririCode component (or any project that already has
+     * `.kcode/`), this provisions the toolchain on demand:
+     *
+     *   1. regenerate `.kcode/` configs when composer.json, devkit.php or the
+     *      devkit version changed (or a generated file is missing);
+     *   2. start the PHP container in `--docker` mode;
+     *   3. install the toolchain into `.kcode/vendor/` when it is missing or
+     *      was installed from another manifest or devkit.lock;
+     *   4. run `composer install` at the root when `vendor/autoload.php` is
+     *      missing.
+     *
+     * Concurrent kcode processes serialize on `.kcode/.provision.lock`.
+     * Set KCODE_NO_PROVISION=1 to skip provisioning.
+     *
+     * @param (Closure(string): void)|null $notify Receives one line per action taken
      * @return int 0 when ready, a non-zero exit code otherwise
      *
      * @since 1.2.0
      */
-    public function prepareToolchain(): int
+    public function prepareToolchain(?Closure $notify = null): int
     {
-        return $this->prepareContainer();
+        $context = $this->context();
+        $notify ??= static function (string $message): void {
+        };
+
+        if (! $this->shouldProvision($context)) {
+            if (! is_dir($context->devkitDir) && ! $this->executor()->isContainerized()) {
+                $notify('No .kcode/ found — run "kcode init" (or commit a devkit.php to enable auto-provisioning).');
+            }
+
+            return $this->prepareContainer();
+        }
+
+        $this->ensureDirectories($context);
+        $lock = fopen($context->configPath('.provision.lock'), 'c');
+
+        if (\is_resource($lock)) {
+            flock($lock, LOCK_EX);
+        }
+
+        try {
+            return $this->provision($context, $notify);
+        } finally {
+            if (\is_resource($lock)) {
+                flock($lock, LOCK_UN);
+                fclose($lock);
+            }
+        }
     }
 
     /**
@@ -294,6 +406,22 @@ final class Devkit
         mkdir($buildDir, 0o755, true);
     }
 
+    /**
+     * Remove the whole `.kcode/` directory (configs, toolchain, build output).
+     *
+     * Everything in it is regenerated on the next run.
+     *
+     * @since 1.2.0
+     */
+    public function purge(?string $workingDirectory = null): void
+    {
+        $devkitDirectory = $this->context($workingDirectory)->devkitDir;
+
+        if (is_dir($devkitDirectory)) {
+            $this->removeRecursive($devkitDirectory);
+        }
+    }
+
     /** @return list<string> */
     public function registeredTools(): array
     {
@@ -301,6 +429,75 @@ final class Devkit
     }
 
     // ── Internals ─────────────────────────────────────────────────
+
+    /** @param Closure(string): void $notify */
+    private function provision(ProjectContext $context, Closure $notify): int
+    {
+        if (! $this->state->configsCurrent($context) || $this->hasMissingConfig($context)) {
+            $count = $this->init();
+            $notify("Generated {$count} config file(s) in .kcode/");
+        }
+
+        $containerExitCode = $this->prepareContainer();
+
+        if (0 !== $containerExitCode) {
+            return $containerExitCode;
+        }
+
+        if (! $this->state->toolsCurrent($context)) {
+            $notify('Installing the toolchain into .kcode/vendor/ ...');
+            $exitCode = $this->installTools();
+
+            if (0 !== $exitCode) {
+                return $exitCode;
+            }
+        }
+
+        if (! is_file($context->rootPath('vendor/autoload.php'))) {
+            $notify('Installing project dependencies (composer install) ...');
+
+            return $this->installProjectDependencies();
+        }
+
+        return 0;
+    }
+
+    /** KaririCode components and projects that already use .kcode/ are provisioned automatically. */
+    private function shouldProvision(ProjectContext $context): bool
+    {
+        $optOut = strtolower((string) getenv(self::NO_PROVISION_VARIABLE));
+
+        if (\in_array($optOut, ['1', 'true', 'yes', 'on'], true)) {
+            return false;
+        }
+
+        return $context->kaririCodeComponent || is_dir($context->devkitDir);
+    }
+
+    private function hasMissingConfig(ProjectContext $context): bool
+    {
+        return array_any(
+            $this->generators,
+            static fn (ConfigGenerator $generator): bool => ! is_file($context->configPath($generator->outputPath())),
+        );
+    }
+
+    /** Pin versions from devkit.lock, or drop a lock that no longer matches the manifest. */
+    private function prepareToolsLock(ProjectContext $context): void
+    {
+        $installedLock = $context->configPath('composer.lock');
+        $pinnedLock = $context->rootPath(ToolchainState::LOCK_FILE);
+
+        if (is_file($pinnedLock)) {
+            copy($pinnedLock, $installedLock);
+
+            return;
+        }
+
+        if (is_file($installedLock) && ! $this->state->toolsInputsUnchanged($context)) {
+            unlink($installedLock);
+        }
+    }
 
     /** Composer inside the container is on PATH; on the host it is resolved. */
     private function composerBinary(): string

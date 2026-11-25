@@ -65,7 +65,7 @@ final class Application
 
         try {
             $preparationExitCode = match (true) {
-                $command->requiresToolchain() => $this->devkit->prepareToolchain(),
+                $command->requiresToolchain() => $this->devkit->prepareToolchain($this->progress(...)),
                 $command->requiresContainer() => $this->devkit->prepareContainer(),
                 default => 0,
             };
@@ -85,6 +85,12 @@ final class Application
     }
 
     // ── Internals ─────────────────────────────────────────────────
+
+    /** Report a provisioning step (e.g. "Installing the toolchain ..."). */
+    private function progress(string $message): void
+    {
+        fwrite(STDOUT, "\033[36m⚙\033[0m {$message}" . PHP_EOL);
+    }
 
     /** @param list<string> $argv */
     private function isHelp(array $argv): bool

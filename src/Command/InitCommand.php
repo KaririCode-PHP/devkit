@@ -22,6 +22,7 @@ use const PHP_EOL;
  * Flags:
  *   --config         Scaffold a `devkit.php` override file in the project root
  *   --skip-install   Generate configs only (skip composer install step)
+ *   --lock           Pin the installed tool versions in `devkit.lock` (commit it)
  *
  * @since 1.0.0
  */
@@ -41,7 +42,7 @@ final class InitCommand extends AbstractCommand
     #[Override]
     public function description(): string
     {
-        return 'Generate .kcode/ configs (--config to scaffold devkit.php)';
+        return 'Generate .kcode/ and install the toolchain (--config, --lock, --skip-install)';
     }
 
     #[Override]
@@ -76,6 +77,14 @@ final class InitCommand extends AbstractCommand
             }
 
             $this->info('Dev tools installed in .kcode/vendor/bin/');
+
+            if ($this->hasFlag($arguments, '--lock')) {
+                if ($devkit->lockTools()) {
+                    $this->info('Pinned tool versions in devkit.lock — commit it for reproducible gates.');
+                } else {
+                    $this->warning('Could not write devkit.lock: .kcode/composer.lock not found.');
+                }
+            }
         }
 
         // ── Phase 3: Scaffold devkit.php if requested ────────────────────
