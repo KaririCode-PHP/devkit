@@ -40,38 +40,51 @@ jobs:
           php build/kcode.phar migrate --dry-run
           echo "✓ Self-test passed"
 
-      - name: Extract version from tag
-        id: version
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+      # The release body is the tag's section of CHANGELOG.md, followed by
+      # installation notes. A tag without a CHANGELOG section fails here.
+      - name: Build release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="$version" '
+            index($0, "## [" version "]") == 1 { printing = 1; next }
+            printing && /^## \[/ { exit }
+            printing && $0 != "---" { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "CHANGELOG.md has no section for ${version}" >&2
+            exit 1
+          fi
+          cat >> release-notes.md <<EOF
+
+          ## Installation
+
+          Global PHAR (recommended):
+
+          \`\`\`bash
+          wget https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/kcode.phar
+          chmod +x kcode.phar
+          sudo mv kcode.phar /usr/local/bin/kcode
+          \`\`\`
+
+          Global Composer package: \`composer global require kariricode/devkit\`
+
+          ## Quick Start
+
+          \`\`\`bash
+          cd your-component
+          kcode quality      # provisions .kcode/ on the first run
+          kcode migrate      # legacy components: Docker files and QA require-dev entries
+          kcode up           # shared PHP container (.kcode/docker/)
+          \`\`\`
+          EOF
+          cat release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: KaririCode Devkit ${{ steps.version.outputs.tag }}
+          tag_name: ${{ github.ref_name }}
+          name: KaririCode Devkit ${{ github.ref_name }}
           draft: false
           prerelease: false
           files: build/kcode.phar
-          body: |
-            ## Installation
-
-            ### PHAR (standalone)
-            ```bash
-            wget https://github.com/KaririCode-Framework/kariricode-devkit/releases/download/${{ steps.version.outputs.tag }}/kcode.phar
-            chmod +x kcode.phar
-            sudo mv kcode.phar /usr/local/bin/kcode
-            ```
-
-            ### Composer
-            ```bash
-            composer require --dev kariricode/devkit
-            ```
-
-            ## Quick Start
-            ```bash
-            kcode init
-            kcode migrate
-            kcode quality
-            ```
-
-            See [CHANGELOG.md](CHANGELOG.md) for details.
+          body_path: release-notes.md
