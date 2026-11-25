@@ -19,19 +19,28 @@ final readonly class MigrationReport
     public int $totalItems;
 
     /**
-     * @param array<string, string> $redundantPackages    Package name → version constraint
-     * @param list<string>          $redundantConfigFiles Filenames relative to project root
-     * @param list<string>          $redundantCachePaths  Cache paths relative to project root
+     * @param array<string, string>                                                  $redundantPackages    Removed from require-dev: package → constraint
+     * @param list<string>                                                           $redundantConfigFiles Filenames relative to project root
+     * @param list<string>                                                           $redundantCachePaths  Cache paths relative to project root
+     * @param list<string>                                                           $legacyDockerPaths    Per-component Docker scaffolding (since 1.2.0)
+     * @param array<string, string>                                                  $relocatedPackages    Moved to devkit.php → tools: package → constraint (since 1.2.0)
+     * @param array<string, array{from: string|list<string>, to: string|list<string>}> $scriptRewrites       Composer scripts rewritten to kcode (since 1.2.0)
      */
     public function __construct(
         public string $projectRoot,
         public array $redundantPackages,
         public array $redundantConfigFiles,
         public array $redundantCachePaths,
+        public array $legacyDockerPaths = [],
+        public array $relocatedPackages = [],
+        public array $scriptRewrites = [],
     ) {
         $this->totalItems = \count($redundantPackages)
             + \count($redundantConfigFiles)
-            + \count($redundantCachePaths);
+            + \count($redundantCachePaths)
+            + \count($legacyDockerPaths)
+            + \count($relocatedPackages)
+            + \count($scriptRewrites);
         $this->hasRedundancies = $this->totalItems > 0;
     }
 
@@ -48,5 +57,33 @@ final readonly class MigrationReport
     public function hasCachePaths(): bool
     {
         return [] !== $this->redundantCachePaths;
+    }
+
+    /** @since 1.2.0 */
+    public function hasDockerPaths(): bool
+    {
+        return [] !== $this->legacyDockerPaths;
+    }
+
+    /** @since 1.2.0 */
+    public function hasRelocatedPackages(): bool
+    {
+        return [] !== $this->relocatedPackages;
+    }
+
+    /** @since 1.2.0 */
+    public function hasScriptRewrites(): bool
+    {
+        return [] !== $this->scriptRewrites;
+    }
+
+    /**
+     * Whether composer.json changes (packages or scripts).
+     *
+     * @since 1.2.0
+     */
+    public function changesComposerManifest(): bool
+    {
+        return $this->hasPackages() || $this->hasRelocatedPackages() || $this->hasScriptRewrites();
     }
 }
