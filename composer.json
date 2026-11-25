@@ -1,6 +1,6 @@
 {
     "name": "kariricode/devkit",
-    "description": "Zero-config PHP quality toolchain for KaririCode Framework. Bundles PHPUnit, PHPStan, PHP-CS-Fixer, Rector, and Psalm under a single `kcode` CLI — isolated in .kcode/ so it never pollutes production dependencies.",
+    "description": "Zero-config PHP quality toolchain and container runtime for KaririCode Framework. One global `kcode` CLI provisions PHPUnit, PHPStan, PHP-CS-Fixer, Rector and Psalm into .kcode/ on demand and runs them on the host or in a generated PHP container — no require-dev entries, no per-component Docker files.",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -23,6 +23,8 @@
         "developer-tools",
         "code-quality",
         "refactoring",
+        "docker",
+        "container",
         "php84"
     ],
     "homepage": "https://kariricode.org",

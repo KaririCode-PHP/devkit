@@ -6,14 +6,14 @@
 [![Composer](https://img.shields.io/badge/Composer-2.x-885630?logo=composer&logoColor=white)](https://getcomposer.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 [![PHPStan Level 9](https://img.shields.io/badge/PHPStan-Level%209-4F46E5)](https://phpstan.org/)
-[![Tests](https://img.shields.io/badge/Tests-41%20passing-22c55e)](https://kariricode.org)
+[![Tests](https://img.shields.io/badge/Tests-342%20passing-22c55e)](https://kariricode.org)
 [![KaririCode Framework](https://img.shields.io/badge/KaririCode-Framework-orange)](https://kariricode.org)
 
-**Unified quality toolchain for the KaririCode Framework ecosystem.**
+**Unified quality toolchain and container runtime for the KaririCode Framework ecosystem.**
 
-One dependency. One CLI. Zero config drift across 35+ components.
+One global CLI. No QA dependencies, no Docker files, no config drift across 35+ components.
 
-[Installation](#installation) · [Quick Start](#quick-start) · [CLI Reference](#cli-reference) · [Configuration](#configuration) · [CI Integration](#ci-integration)
+[Installation](#installation) · [Quick Start](#quick-start) · [CLI Reference](#cli-reference) · [Container Runtime](#container-runtime) · [Configuration](#configuration) · [CI Integration](#ci-integration)
 
 </div>
 
@@ -21,51 +21,65 @@ One dependency. One CLI. Zero config drift across 35+ components.
 
 ## The Problem
 
-Every KaririCode component independently maintains five dev tools — leading to hundreds of near-identical, manually-drifting configurations:
+Every KaririCode component used to maintain its own toolchain and its own container — hundreds of near-identical files drifting apart:
 
 ```
-composer.json          →  5 require-dev entries per component
-phpunit.xml.dist       →  ~60 lines per component
-phpstan.neon           →  ~25 lines per component
-.php-cs-fixer.dist.php →  ~50 lines per component
-rector.php             →  ~30 lines per component
-psalm.xml              →  ~20 lines per component
+composer.json        →  5–7 QA entries in require-dev per component
+phpunit.xml.dist     →  ~60 lines per component
+phpstan.neon         →  ~25 lines per component
+.php-cs-fixer.php    →  ~50 lines per component
+.docker/php/         →  Dockerfile + php.ini per component
+docker-compose.yml   →  one service per component
+.env.example         →  KARIRI_PHP_VERSION, KARIRI_PHP_PORT, …
+Makefile             →  ~170 lines wrapping docker-compose exec
 ```
 
-Across **35+ components**, that's **175+ redundant dependency entries** and **175+ near-identical config files**. Updating a single CS-Fixer rule means 35 pull requests.
+Across **35+ components**, updating a CS-Fixer rule, a PHPUnit version or the PHP image means 35 pull requests.
 
 ## The Solution
 
+Install `kcode` once. Inside any KaririCode component, every command provisions what it needs:
+
 ```bash
-composer require --dev kariricode/devkit
-vendor/bin/kcode init
+cd kariricode-validator/src      # any directory inside the component
+kcode test                       # generates .kcode/, installs the toolchain, runs PHPUnit
+kcode up                         # starts the shared PHP container (.kcode/docker/)
+kcode quality --docker           # full pipeline inside the container
 ```
 
-Devkit generates `.kcode/` — a gitignored directory of configs derived directly from your `composer.json`. Your five dev dependencies become one, with one canonical source of truth:
+The component keeps only its source, its `composer.json` and, optionally, a `devkit.php`:
 
 ```
 your-component/
-├── devkit.php               ← Optional overrides (committed to git)
-├── .kcode/                  ← Generated (gitignored — run `kcode init` to recreate)
-│   ├── phpunit.xml.dist
+├── devkit.php               ← Optional overrides (committed)
+├── devkit.lock              ← Optional pinned tool versions (committed)
+├── .kcode/                  ← Generated, disposable, gitignored
+│   ├── composer.json        ←   toolchain manifest
+│   ├── vendor/              ←   PHPUnit, PHPStan, PHP-CS-Fixer, Rector, Psalm (+ devkit.php 'tools')
+│   ├── docker/              ←   Dockerfile, php.ini, compose.yaml
+│   ├── phpunit.xml.dist     ←   generated configs
 │   ├── phpstan.neon
 │   ├── php-cs-fixer.php
 │   ├── rector.php
 │   ├── psalm.xml
-│   └── build/              ← Coverage reports, caches, JUnit XML
+│   └── build/               ←   coverage, caches, JUnit XML
 ├── composer.json
 ├── src/
 └── tests/
 ```
 
 ```diff
-  "require-dev": {
--     "phpunit/phpunit": "^12.0",
--     "phpstan/phpstan": "^2.0",
--     "friendsofphp/php-cs-fixer": "^3.64",
--     "rector/rector": "^2.0",
--     "vimeo/psalm": "^6.0"
-+     "kariricode/devkit": "^1.0"
+- "require-dev": {
+-     "phpunit/phpunit": "^11.0",
+-     "phpstan/phpstan": "^1.10",
+-     "friendsofphp/php-cs-fixer": "^3.51",
+-     "squizlabs/php_codesniffer": "^3.9",
+-     "mockery/mockery": "^1.6"
+- },
++ "require-dev": {},
+  "scripts": {
+-     "test": "vendor/bin/phpunit --testdox"
++     "test": "kcode test --testdox"
   }
 ```
 
@@ -73,184 +87,240 @@ your-component/
 
 ## Requirements
 
-| Requirement | Version |
-|---|---|
-| PHP | 8.4 or higher |
-| Composer | 2.x |
+| Requirement | Version | Needed for |
+|---|---|---|
+| PHP | 8.4 or higher | `kcode` itself and host-mode tools |
+| Composer | 2.x | Installing the toolchain into `.kcode/vendor/` |
+| Docker with Compose v2 | any current | Only for `kcode up` and `--docker` |
 
 ---
 
 ## Installation
 
-### As a Composer dependency *(recommended)*
+### Global PHAR *(recommended)*
 
 ```bash
-composer require --dev kariricode/devkit
-```
-
-### As a standalone PHAR
-
-```bash
-wget https://github.com/kariricode/devkit/releases/latest/download/kcode.phar
+wget https://github.com/KaririCode-PHP/devkit/releases/latest/download/kcode.phar
 chmod +x kcode.phar
 sudo mv kcode.phar /usr/local/bin/kcode
+kcode --version
 ```
+
+### Global Composer package
+
+```bash
+composer global require kariricode/devkit
+# make sure Composer's global bin directory is on your PATH
+```
+
+### Project dependency *(legacy)*
+
+`composer require --dev kariricode/devkit` still works and exposes `vendor/bin/kcode`, but it puts a QA dependency back into `require-dev`. Prefer the global install.
 
 ---
 
 ## Quick Start
 
+### A component that already uses kcode
+
 ```bash
-# Step 1 — Generate .kcode/ configs from your composer.json
-vendor/bin/kcode init
-
-# Step 2 — Remove old deps/configs (interactive prompt)
-vendor/bin/kcode migrate
-
-# Step 3 — Run the full quality pipeline
-vendor/bin/kcode quality
+git clone https://github.com/KaririCode-PHP/dotenv && cd dotenv
+kcode quality     # first run: configs + toolchain + composer install, then the pipeline
 ```
+
+### A legacy component (`.docker/`, Makefile, QA tools in require-dev)
+
+```bash
+kcode migrate --dry-run    # review what kcode replaces
+kcode migrate              # remove Docker scaffolding, QA packages, root configs; rewrite scripts
+composer update            # drop the removed packages from composer.lock and vendor/
+kcode quality              # provisions .kcode/ and runs the pipeline
+```
+
+Components that keep root configs under KaririCode Spec V4.3.3 §31 use `kcode migrate --keep-configs`.
 
 ---
 
 ## CLI Reference
 
+```
+kcode <command> [options] [arguments]
+```
+
+| Command | Purpose |
+|---|---|
+| `init` | Generate `.kcode/` and install the toolchain (`--config`, `--lock`, `--skip-install`) |
+| `migrate` | Remove Docker scaffolding, QA `require-dev` entries and root configs (`--dry-run`, `-n`, `--keep-configs`) |
+| `test` | Run PHPUnit (`--coverage`, `--suite=Name`, any PHPUnit argument) |
+| `analyse` | Run PHPStan and Psalm |
+| `cs:fix` | Fix code style (`--check` for a dry run) |
+| `rector` | Preview Rector changes (`--fix` to apply) |
+| `quality` | Full pipeline: cs:check → phpstan → psalm → phpunit |
+| `format` | cs:fix + rector --fix |
+| `security` | `composer audit` |
+| `run` | Run any toolchain binary: `kcode run infection --threads=max` |
+| `up` | Start the PHP container (`--build` to rebuild the image) |
+| `down` | Stop and remove the containers (`--volumes`) |
+| `shell` | Open a shell in the container (`kcode shell bash`) |
+| `exec` | Run a command in the container: `kcode exec composer update` |
+| `ps` / `logs` | Container state / logs (`kcode logs --follow`) |
+| `clean` | Remove `.kcode/build/` (`--all` removes the whole `.kcode/`) |
+
+Global options: `--docker` runs the command's tools inside the PHP container; `--no-docker` forces the host. Every command works from any subdirectory of the project.
+
+---
+
 ### `kcode init`
 
-Generates or regenerates all configs inside `.kcode/` from your `composer.json`. Safe to run at any time — existing files are cleanly overwritten.
+Generates all configs inside `.kcode/` and installs the toolchain into `.kcode/vendor/`. Inside a KaririCode component this happens automatically on the first tool command, so `init` is optional there.
 
 ```bash
-kcode init           # Generate configs
-kcode init --config  # Also scaffold devkit.php with all available keys
-```
-
-```
-✓ Project: kariricode/parser
-✓ Namespace: KaririCode\Parser
-✓ PHP: 8.4
-✓ Generated 5 config file(s) in .kcode/
-✓ .kcode/ added to .gitignore
-⚠ Found 8 redundant item(s) that kcode replaces.
-  Run kcode migrate to review and clean up.
+kcode init                 # Generate configs and install the toolchain
+kcode init --config        # Also scaffold devkit.php with every supported key
+kcode init --lock          # Pin the installed tool versions in devkit.lock (commit it)
+kcode init --skip-install  # Configs only
 ```
 
 ---
 
 ### `kcode migrate`
 
-Scans for redundant dev dependencies, root-level config files, and cache paths that Devkit now manages. Presents a full report before making any change.
+Takes a component to "source plus kcode". Presents a full report before changing anything.
 
 ```bash
 kcode migrate                   # Interactive (default)
-kcode migrate --dry-run         # Preview only — no changes applied
-kcode migrate --no-interaction  # Auto-remove (for CI)
+kcode migrate --dry-run         # Report only
+kcode migrate --no-interaction  # Apply everything (CI)
+kcode migrate --keep-configs    # Keep root tool configs (Spec V4.3.3 §31)
 ```
 
-**Detected items:**
+| Category | Items | Action |
+|---|---|---|
+| Docker scaffolding | `.docker/`, `docker/`, `docker-compose*.y(a)ml`, `compose.y(a)ml`, `Dockerfile`, `.dockerignore`, the legacy `.env.example` and Docker `Makefile` | Removed (`kcode up` replaces them) |
+| QA tools in `require-dev` | PHPUnit, PHPStan (+ extensions), PHP-CS-Fixer, Rector, Psalm (+ PHPUnit plugin) | Removed (installed into `.kcode/vendor/`) |
+| Superseded QA tools | PHP_CodeSniffer, PHP Insights, Security Checker, PHPMD, phpcpd, ECS | Removed |
+| Test-support libraries | Mockery, Infection, ParaTest, prophecy-phpunit, bypass-finals | Moved to `devkit.php` → `tools` |
+| Root configs | `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `.php-cs-fixer(.dist).php`, `rector.php`, `psalm.xml(.dist)` | Removed unless `--keep-configs` |
+| Superseded configs | `phpcs.xml`, `phpinsights.php`, `phpmd.xml`, `ecs.php`, … | Removed |
+| Caches | `.phpunit.cache`, `.phpstan`, `.php-cs-fixer.cache`, `.psalm`, `.phpcs-cache`, `coverage-report-html/` | Removed |
+| Composer scripts | Calls to `phpunit`, `phpstan`, `psalm`, `php-cs-fixer`, `phpcs`, `rector`, `infection`, … | Rewritten to `kcode` commands |
 
-| Category | Items |
-|---|---|
-| `require-dev` packages | `phpunit/phpunit`, `phpstan/phpstan`, `phpstan` extensions, `php-cs-fixer`, `rector/rector`, `vimeo/psalm` |
-| Root config files | `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `.php-cs-fixer(.dist).php`, `rector.php`, `psalm.xml(.dist)` |
-| Root cache paths | `.phpunit.cache`, `.phpunit.result.cache`, `.phpstan`, `.php-cs-fixer.cache`, `.psalm` |
+`.env.example` and `Makefile` are removed only when they match the legacy Docker templates. composer.json keeps its indentation, and `"require-dev": {}` stays an object.
 
 ---
 
 ### `kcode test`
 
-Runs PHPUnit with the `.kcode/phpunit.xml.dist` configuration.
+Runs PHPUnit with the root `phpunit.xml(.dist)` when the project commits one, otherwise with `.kcode/phpunit.xml.dist`.
 
 ```bash
 kcode test                           # Run all test suites
 kcode test --suite=Unit              # Run a single suite
-kcode test --coverage                # Generate HTML coverage report
+kcode test --coverage                # HTML coverage report in .kcode/build/coverage/
 kcode test --filter=testMyMethod     # Pass any PHPUnit argument through
+kcode test --docker                  # Run inside the PHP container
 ```
+
+Without PCOV or Xdebug (coverage mode), coverage reporting is switched off automatically so the tests still run.
 
 ---
 
-### `kcode analyse`
-
-Runs PHPStan and Psalm in sequence.
+### `kcode analyse` · `kcode cs:fix` · `kcode rector` · `kcode format`
 
 ```bash
-kcode analyse
-```
-
----
-
-### `kcode cs:fix`
-
-Applies PHP-CS-Fixer with the KaririCode code standard.
-
-```bash
+kcode analyse         # PHPStan, then Psalm
 kcode cs:fix          # Fix all violations
-kcode cs:fix --check  # Dry-run — only report (no modifications)
-```
-
----
-
-### `kcode rector`
-
-Runs Rector. Defaults to read-only preview mode.
-
-```bash
-kcode rector        # Preview changes (no files modified)
-kcode rector --fix  # Apply changes
+kcode cs:fix --check  # Report only
+kcode rector          # Preview
+kcode rector --fix    # Apply
+kcode format          # cs:fix + rector --fix
 ```
 
 ---
 
 ### `kcode quality`
 
-Full sequential pipeline in optimal order:
-
 ```
 cs:check → phpstan → psalm → phpunit
 ```
 
-```bash
-kcode quality
-```
-
 ```
 ✓ cs-fixer   passed (1.23s)
-✓ phpstan     passed (4.56s)
-✓ psalm       passed (3.21s)
-✓ phpunit     passed (2.10s)
+✓ phpstan    passed (4.56s)
+✓ psalm      passed (3.21s)
+✓ phpunit    passed (2.10s)
 
 ✓ All 4 tool(s) passed (11.10s total)
 ```
 
 ---
 
-### `kcode format`
+### `kcode run`
 
-Applies all auto-formatting in sequence: CS-Fixer fix + Rector apply.
+Runs a binary from `.kcode/vendor/bin/` (then `vendor/bin/`) — for tools added through `devkit.php` → `tools` that have no dedicated command:
 
 ```bash
-kcode format
+kcode run infection --threads=max --show-mutations
+kcode run paratest --processes=4
 ```
 
 ---
 
-### `kcode security`
-
-Runs `composer audit` to check for known security vulnerabilities.
+### `kcode security` · `kcode clean`
 
 ```bash
-kcode security
+kcode security     # composer audit
+kcode clean        # Remove .kcode/build/
+kcode clean --all  # Remove .kcode/ entirely — recreated on the next run
 ```
 
 ---
 
-### `kcode clean`
+## On-Demand Provisioning
 
-Removes `.kcode/build/` — caches, coverage reports, JUnit XML.
+Before `test`, `analyse`, `cs:fix`, `rector`, `format`, `quality` and `run`, kcode prepares `.kcode/` when the project is a KaririCode component (`kariricode/*` package, or any project with a `devkit.php`) or already has a `.kcode/`:
+
+| Step | Runs when |
+|---|---|
+| Regenerate configs | `composer.json`, `devkit.php` or the kcode version changed, or a generated file is missing |
+| Start the container | `--docker` is active and the container is stopped |
+| Install the toolchain | `.kcode/vendor/` is missing, or `.kcode/composer.json` / `devkit.lock` changed |
+| `composer install` | `vendor/autoload.php` is missing |
+
+```
+⚙ Generated 9 config file(s) in .kcode/
+⚙ Installing the toolchain into .kcode/vendor/ ...
+⚙ Installing project dependencies (composer install) ...
+```
+
+Later runs skip every step. Set `KCODE_NO_PROVISION=1` to disable provisioning. See [ADR-008](docs/adr/ADR-008-on-demand-provisioning.md).
+
+**Pinned versions.** `kcode init --lock` writes `devkit.lock`. When it is committed, every machine and CI installs exactly those tool versions.
+
+---
+
+## Container Runtime
+
+`kcode up` renders `.kcode/docker/` from `devkit.php` → `docker` and starts it. One definition serves every component; nothing Docker-related is committed.
 
 ```bash
-kcode clean
+kcode up                        # build on first run, then start (docker compose up --detach --wait)
+kcode test --docker             # any tool command, inside the container
+kcode exec composer update      # any command, inside the container
+kcode shell                     # interactive sh
+XDEBUG_MODE=debug kcode test --docker --filter=testParser   # Xdebug for one run
+kcode down
 ```
+
+| Property | Behaviour |
+|---|---|
+| Image | `php:<version>-cli-alpine` + PCOV, Xdebug (off), intl, zip + Composer 2 + git |
+| Tag | `kcode-php:<php>-<Dockerfile hash>` — identical settings share one image |
+| Mount | The project at its **host path**, so every path kcode computes is valid inside |
+| User | Commands run as your UID:GID, so files keep your ownership |
+| Start | Automatic with `--docker`; `kcode up` / `kcode down` for explicit control |
+
+`--docker` can be the default per project (`'docker' => ['enabled' => true]`) or per shell (`KCODE_DOCKER=1`). Use `KCODE_DOCKER_BINARY=podman` for another Compose-compatible CLI. Native Windows paths are not supported; use WSL2. See [ADR-007](docs/adr/ADR-007-container-runtime.md).
 
 ---
 
@@ -258,10 +328,9 @@ kcode clean
 
 ### Auto-detection
 
-Devkit reads your `composer.json` to derive all defaults automatically:
-
 | Detected Field | Source |
 |---|---|
+| Project root | Nearest `composer.json` from the current directory upwards |
 | Project name | `name` |
 | Root namespace | `autoload.psr-4` (first key) |
 | PHP version | `require.php` |
@@ -269,15 +338,15 @@ Devkit reads your `composer.json` to derive all defaults automatically:
 | Test directories | `autoload-dev.psr-4` values |
 | Test suites | Standard subdirs: `Unit/`, `Integration/`, `Conformance/`, `Functional/` |
 
+### Root configs take precedence
+
+When the project commits `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `psalm.xml(.dist)`, `.php-cs-fixer(.dist).php` or `rector.php`, kcode runs the tool with that file; otherwise with the generated one. The binaries always come from `.kcode/vendor/`. This keeps components under KaririCode Spec V4.3.3 §31 on their own gates. See [ADR-009](docs/adr/ADR-009-root-config-precedence.md).
+
 ### Project overrides via `devkit.php`
 
-Create `devkit.php` in your project root to override any default. Scaffold a fully-annotated file with:
-
 ```bash
-kcode init --config
+kcode init --config    # scaffolds a fully annotated devkit.php
 ```
-
-Example:
 
 ```php
 <?php
@@ -285,25 +354,28 @@ Example:
 declare(strict_types=1);
 
 return [
-    'phpstan_level'    => 8,                      // 0–9 (default: 9)
-    'psalm_level'      => 4,                      // 1–9 (default: 3)
-    'exclude_dirs'     => ['src/Contract'],       // Excluded from analysis
-    'test_suites'      => [
-        'Unit'         => 'tests/Unit',
-        'Integration'  => 'tests/Integration',
-    ],
+    'phpstan_level'    => 8,
+    'exclude_dirs'     => ['src/Contract'],
     'coverage_exclude' => ['src/Exception'],
-    'cs_fixer_rules'   => [                       // Merged with KaririCode defaults
-        'yoda_style'   => false,
+    'cs_fixer_rules'   => ['yoda_style' => false],      // merged with KaririCode defaults
+
+    // Toolchain: any Composer package joins .kcode/vendor/
+    'tools' => [
+        'phpunit'         => '^12.5',
+        'mockery/mockery' => '^1.6',
     ],
-    'rector_sets'      => [                       // Replaces defaults entirely
-        'LevelSetList::UP_TO_PHP_84',
-        'SetList::CODE_QUALITY',
+
+    // Container runtime (kcode up / --docker)
+    'docker' => [
+        'enabled'    => false,
+        'extensions' => ['pcov', 'xdebug', 'intl', 'zip', 'redis'],
+        'services'   => ['redis' => 'redis:7-alpine'],
+        'ini'        => ['memory_limit' => '512M'],
     ],
 ];
 ```
 
-After editing, run `kcode init` to regenerate `.kcode/`.
+Changes apply on the next command — no manual `kcode init` needed inside components.
 
 ### Override reference
 
@@ -318,29 +390,42 @@ After editing, run `kcode init` to regenerate `.kcode/`.
 | `test_dirs` | `list<string>` | From PSR-4 autoload-dev | Replace |
 | `exclude_dirs` | `list<string>` | `['src/Contract']` | Replace |
 | `test_suites` | `array<string, string>` | Auto-detected | Replace |
-| `coverage_exclude` | `list<string>` | `['src/Exception']` | Replace |
+| `coverage_exclude` | `list<string>` | `[]` | Replace |
 | `cs_fixer_rules` | `array<string, mixed>` | KaririCode standard | **Merge** (your rules win) |
 | `rector_sets` | `list<string>` | KaririCode standard | Replace |
-| `tools` | `array<string, string>` | — | Informational |
+| `tools` | `array<string, string>` | PHPUnit, PHPStan, PHP-CS-Fixer, Rector, Psalm | **Merge** (short names or package names) |
+| `docker.enabled` | `bool` | `false` | Replace |
+| `docker.php_version` | `string` | `php_version` | Replace |
+| `docker.image` | `?string` | `null` (build `.kcode/docker/Dockerfile`) | Replace |
+| `docker.extensions` | `list<string>` | `pcov, xdebug, intl, zip` | Replace |
+| `docker.packages` | `list<string>` | `[]` | Replace |
+| `docker.ini` | `array<string, scalar>` | memory, timezone, Xdebug off | **Merge** |
+| `docker.environment` | `array<string, scalar>` | HOME, Composer, git safe.directory | **Merge** |
+| `docker.ports` | `list<string>` | `[]` | Replace |
+| `docker.services` | `array<string, string\|array>` | `[]` | Replace |
+| `docker.service` | `array<string, mixed>` | `[]` | Maps merge, lists append, scalars replace |
+
+### Environment variables
+
+| Variable | Effect |
+|---|---|
+| `KCODE_DOCKER=1` / `0` | Default for `--docker` / `--no-docker` |
+| `KCODE_NO_PROVISION=1` | Disable on-demand provisioning |
+| `KCODE_DOCKER_BINARY` | Container CLI (default `docker`) |
+| `COMPOSER_BINARY` | Composer executable on the host |
+| `XDEBUG_MODE`, `XDEBUG_CONFIG`, `XDEBUG_SESSION` | Forwarded into the container per command |
 
 ### File ownership
 
 | File | Location | Committed | Managed by |
 |---|---|---|---|
 | `devkit.php` | Project root | ✅ Yes | Developer |
-| `.kcode/` | Generated dir | ❌ No (gitignored) | `kcode init` |
+| `devkit.lock` | Project root | ✅ Yes (optional) | `kcode init --lock` |
+| `.kcode/` | Project root | ❌ No (gitignored) | kcode |
 
 ### KaririCode coding standard
 
-The default CS-Fixer ruleset includes:
-
-- **PSR-12** baseline with **PHP 8.4 migration** rules
-- Strict types enforcement (`declare_strict_types`)
-- Compiler-optimized native function invocations
-- Alphabetically ordered imports
-- Trailing commas in multiline arrays, arguments, and parameters
-
-See [SPEC-001](docs/spec/SPEC-001-project-detection.md) §7 for the complete rule set.
+The default CS-Fixer ruleset includes PSR-12 with PHP 8.4 migration rules, strict types, compiler-optimized native function invocations, alphabetically ordered imports and trailing commas in multiline structures. See [SPEC-001](docs/spec/SPEC-001-project-detection.md) §7. Components with a root `.php-cs-fixer.dist.php` use their own rules.
 
 ---
 
@@ -360,66 +445,15 @@ jobs:
         with:
           php-version: '8.4'
           coverage: pcov
-      - run: composer install --no-progress --no-scripts
-      - run: vendor/bin/kcode init
-      - run: vendor/bin/kcode migrate --no-interaction
-      - run: vendor/bin/kcode quality
+          tools: composer:v2
+      - name: Install kcode
+        run: |
+          wget -q https://github.com/KaririCode-PHP/devkit/releases/latest/download/kcode.phar
+          sudo install -m 0755 kcode.phar /usr/local/bin/kcode
+      - run: kcode quality    # provisions .kcode/ and runs composer install when needed
 ```
 
-### GitHub Actions — parallel jobs
-
-```yaml
-jobs:
-  cs-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.4' }
-      - run: composer install --no-progress --no-scripts
-      - run: vendor/bin/kcode init && vendor/bin/kcode cs:fix --check
-
-  analyse:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.4' }
-      - run: composer install --no-progress --no-scripts
-      - run: vendor/bin/kcode init && vendor/bin/kcode analyse
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.4', coverage: pcov }
-      - run: composer install --no-progress --no-scripts
-      - run: vendor/bin/kcode init && vendor/bin/kcode test --coverage
-```
-
----
-
-## Migrating from Root-Level Configs
-
-```bash
-# 1. Add devkit as a dev dependency
-composer require --dev kariricode/devkit
-
-# 2. Generate .kcode/ configs
-vendor/bin/kcode init
-
-# 3. Review and remove redundant files (interactive)
-vendor/bin/kcode migrate
-
-# 4. Apply composer.json changes
-composer update
-
-# 5. Verify the pipeline
-vendor/bin/kcode quality
-```
-
-Use `--dry-run` to inspect what would be removed before committing.
+Pin the toolchain with a committed `devkit.lock` for reproducible gates, and pin the PHAR to a release tag instead of `latest` when the workflow must not change on its own.
 
 ---
 
@@ -430,12 +464,13 @@ Use `--dry-run` to inspect what would be removed before committing.
 ```
 src/
 ├── Contract/        Interfaces: ConfigGenerator, ToolRunner
-├── Core/            Devkit façade · ProjectDetector · ProcessExecutor
-├── Configuration/   Config generators (5 tools)
-├── Runner/          Tool runners (6 runners + AbstractToolRunner)
-├── Command/         CLI commands (10 commands + Application + AbstractCommand)
+├── Core/            Devkit façade · ProjectLocator · ProjectDetector · ProcessExecutor ·
+│                    ContainerRuntime · ToolchainState · Migration services
+├── Configuration/   Config generators (5 tools + toolchain manifest + Docker runtime)
+├── Runner/          Tool runners (7 runners + AbstractToolRunner)
+├── Command/         CLI commands (17 commands + Application + base classes)
 ├── Exception/       Exception hierarchy
-└── ValueObject/     Immutable results: ToolResult · QualityReport · MigrationReport
+└── ValueObject/     Immutable values: ToolResult · QualityReport · MigrationReport · DockerSettings
 ```
 
 ### Dependency flow
@@ -444,7 +479,7 @@ src/
 Command → Core (Devkit) → Contract ← Runner / Configuration
 ```
 
-Strict unidirectional flow. No circular dependencies. Commands call the `Devkit` façade. Runners and generators implement contracts. Core orchestrates.
+Strict unidirectional flow. Commands call the `Devkit` façade. Runners and generators implement contracts. Core orchestrates and never imports Configuration.
 
 ### Key design decisions
 
@@ -453,17 +488,20 @@ Strict unidirectional flow. No circular dependencies. Commands call the `Devkit`
 | Native PHAR builder | Avoids Box 4.x / PHP 8.4 incompatibility | — |
 | Zero external runtime dependencies | Sub-millisecond boot, no version conflicts | [ADR-002](docs/adr/ADR-002-zero-dependencies.md) |
 | Config generation over bundling | Eliminates drift across 35+ components | [ADR-003](docs/adr/ADR-003-config-generation.md) |
-| Three-tier binary resolution | PHAR → vendor → global fallback | [ADR-004](docs/adr/ADR-004-binary-resolution.md) |
+| Three-tier binary resolution | `.kcode/vendor` → `vendor` → global fallback | [ADR-004](docs/adr/ADR-004-binary-resolution.md) |
 | `.kcode/` directory | Clean project root, single gitignore entry | [ADR-005](docs/adr/ADR-005-kariricode-directory.md) |
-| Immutable value objects | Thread-safe, ARFA 1.3 compliant | [ADR-006](docs/adr/ADR-006-immutable-value-objects.md) |
+| Immutable value objects | ARFA 1.3 compliant | [ADR-006](docs/adr/ADR-006-immutable-value-objects.md) |
+| Generated container runtime | One Docker definition for every component | [ADR-007](docs/adr/ADR-007-container-runtime.md) |
+| On-demand provisioning | A global kcode needs no per-project setup | [ADR-008](docs/adr/ADR-008-on-demand-provisioning.md) |
+| Root configs take precedence | Spec V4.3.3 §31 components keep their gates | [ADR-009](docs/adr/ADR-009-root-config-precedence.md) |
 
 ### Specifications
 
 | Spec | Covers |
 |---|---|
-| [SPEC-001](docs/spec/SPEC-001-project-detection.md) | Project detection, config merging, defaults |
-| [SPEC-002](docs/spec/SPEC-002-cli-interface.md) | CLI interface, argument parsing, output format |
-| [SPEC-003](docs/spec/SPEC-003-tool-runner.md) | Runner contract, process execution, result handling |
+| [SPEC-001](docs/spec/SPEC-001-project-detection.md) | Project location and detection, config merging, Docker settings |
+| [SPEC-002](docs/spec/SPEC-002-cli-interface.md) | CLI interface, global options, toolchain preparation |
+| [SPEC-003](docs/spec/SPEC-003-tool-runner.md) | Runner contract, config precedence, container mode, process execution |
 
 ---
 
@@ -471,13 +509,13 @@ Strict unidirectional flow. No circular dependencies. Commands call the `Devkit`
 
 | Metric | Value |
 |---|---|
-| PHP source files | 38 |
-| Total source lines | ~2,900 |
+| PHP source files | 61 |
+| Total source lines | ~6,200 |
 | External runtime dependencies | 0 |
-| Quality tools supported | 6 (PHPUnit, PHPStan, PHP-CS-Fixer, Rector, Psalm, Composer Audit) |
-| CLI commands | 10 |
+| Quality tools supported | 6 (PHPUnit, PHPStan, PHP-CS-Fixer, Rector, Psalm, Composer Audit) + any via `kcode run` |
+| CLI commands | 17 |
 | PHPStan level | 9 (0 errors) |
-| Test suite | 41 tests · 81 assertions |
+| Test suite | 342 tests · 696 assertions (Unit + Integration) |
 | PHP version | 8.4+ |
 | ARFA compliance | 1.3 |
 
@@ -494,7 +532,7 @@ make release
 # Manual
 composer install
 php -d phar.readonly=0 bin/build-phar.php
-php build/kcode.phar --version    # → KaririCode Devkit 1.0.0
+php build/kcode.phar --version    # → KaririCode Devkit 1.2.0
 
 # Install globally
 sudo mv build/kcode.phar /usr/local/bin/kcode
@@ -507,12 +545,13 @@ See [docs/BUILDING.md](docs/BUILDING.md) for full build documentation, troublesh
 ## Contributing
 
 ```bash
-git clone https://github.com/kariricode/devkit.git
+git clone https://github.com/KaririCode-PHP/devkit.git
 cd devkit
 composer install
-vendor/bin/kcode init
-vendor/bin/kcode quality        # Must pass before opening a PR
+php bin/kcode quality        # Must pass before opening a PR
 ```
+
+Commit messages follow Conventional Commits in English: `type(scope): imperative summary` (`feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`, `perf`, `style`), lowercase after the colon, no trailing period, with a body that explains why and lists the changes.
 
 CI enforces code quality and a PHAR smoke test on every push and PR.
 
@@ -528,6 +567,6 @@ CI enforces code quality and a PHAR smoke test on every push and PR.
 
 Part of the **[KaririCode Framework](https://kariricode.org)** ecosystem.
 
-[kariricode.org](https://kariricode.org) · [GitHub](https://github.com/kariricode) · [Packagist](https://packagist.org/packages/kariricode/)
+[kariricode.org](https://kariricode.org) · [GitHub](https://github.com/KaririCode-PHP) · [Packagist](https://packagist.org/packages/kariricode/)
 
 </div>

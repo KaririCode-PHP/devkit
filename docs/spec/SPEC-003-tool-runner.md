@@ -1,8 +1,8 @@
 # SPEC-003: Tool Runner Abstraction and Process Execution
 
-**Version:** 1.0.0
+**Version:** 1.2.0
 **Status:** Normative
-**Date:** 2025-02-28
+**Date:** 2025-02-28 (revised 2026-11-25)
 **Author:** Walmir Silva
 
 ## 1. Purpose
@@ -115,6 +115,22 @@ Composer is typically global. The runner overrides `binary()` to check global PA
 
 This inverts the standard Tier 2 → Tier 3 order because `vendor/bin/composer` rarely exists.
 
+### 4.5 Configuration Precedence (since 1.2.0)
+
+`AbstractToolRunner::configFile($generated, ...$rootCandidates)` returns the first root candidate that exists, else `.kcode/$generated` (ADR-009):
+
+| Runner | Root candidates |
+|---|---|
+| `PhpUnitRunner` | `phpunit.xml`, `phpunit.xml.dist` |
+| `PhpStanRunner` | `phpstan.neon`, `phpstan.neon.dist`, `phpstan.dist.neon` |
+| `PsalmRunner` | `psalm.xml`, `psalm.xml.dist` |
+| `CsFixerRunner` | `.php-cs-fixer.php`, `.php-cs-fixer.dist.php` |
+| `RectorRunner`, `RectorApplyRunner` | `rector.php` |
+
+### 4.6 Coverage Driver Probe (since 1.2.0)
+
+PHPUnit runs no test when a coverage report is configured and no driver is loaded. `PhpUnitRunner::run()` appends `--no-coverage` when the PHP that runs the tests has neither PCOV (`pcov.enabled`) nor Xdebug with `coverage` in its mode, unless the arguments already contain `--coverage*` or `--no-coverage`. In container mode the probe executes inside the container.
+
 ## 5. ProcessExecutor
 
 ### 5.1 Process Spawning
@@ -155,7 +171,21 @@ resolveBinary(string $vendorBin): ?string
 
 Tier 1 is only checked when running inside a PHAR (`Phar::running(false) !== ''`).
 
-### 5.4 Security
+### 5.4 Container Mode (since 1.2.0)
+
+`ProcessExecutor` accepts an optional `ContainerRuntime`. When present:
+
+- `execute()` and `passthru()` wrap commands as `docker compose --file .kcode/docker/compose.yaml --project-name kcode-<slug> exec -T [--user uid:gid] [--env XDEBUG_*] --workdir <root> php <command>` (`-T` is dropped for interactive sessions on a TTY);
+- `ensureContainer()` runs `docker compose ps --status running --quiet php` and, when it prints nothing, `docker compose up --detach --wait`;
+- `resolveBinary()` skips the global PATH tier, which does not exist inside the container.
+
+`execute(..., inContainer: false)` / `passthru(..., inContainer: false)` run on the host (used for the compose commands themselves).
+
+### 5.5 Output Capture
+
+`execute()` reads stdout and stderr concurrently (`stream_select()` on non-blocking pipes). Sequential reads deadlock as soon as a child fills the other pipe's buffer. `passthru()` attaches STDIN, STDOUT and STDERR directly.
+
+### 5.6 Security
 
 - `escapeshellarg()` is used for all shell-injected values in `command -v` calls.
 - `proc_open()` accepts command as an array (no shell interpolation).

@@ -151,3 +151,23 @@ vendor/bin/kcode migrate    # Interactive removal of old deps and configs
 - Next.js: `.next/` build directory
 - Rust Cargo: `target/` build directory
 - ARFA 1.3 Specification, §5.1: Project Layout Conventions
+
+## Amendment — v1.2.0
+
+`.kcode/` now also holds the installed toolchain and the container runtime, and is maintained on demand (ADR-007, ADR-008):
+
+```
+project/
+├── devkit.php            # optional overrides (committed)
+├── devkit.lock           # optional pinned toolchain versions (committed) — kcode init --lock
+└── .kcode/               # gitignored, disposable — kcode clean --all removes it
+    ├── composer.json     # toolchain manifest
+    ├── composer.lock
+    ├── vendor/           # phpunit, phpstan, php-cs-fixer, rector, psalm + devkit.php 'tools'
+    ├── docker/           # Dockerfile, php.ini, compose.yaml
+    ├── state.json        # fingerprints for on-demand provisioning
+    ├── phpunit.xml.dist  # …and the other generated configs
+    └── build/
+```
+
+Root-level tool configs, when committed, take precedence over the generated ones (ADR-009). Without them, the "clean project root" layout above applies unchanged.

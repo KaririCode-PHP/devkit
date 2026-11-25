@@ -14,14 +14,17 @@ Documentation for the **kariricode/devkit** package — the unified quality tool
 | [ADR-004](adr/ADR-004-binary-resolution.md) | Three-Tier Binary Resolution Strategy | Accepted |
 | [ADR-005](adr/ADR-005-kariricode-directory.md) | Centralized `.kcode/` Directory Convention | Accepted |
 | [ADR-006](adr/ADR-006-immutable-value-objects.md) | Immutable Value Objects for Tool Results | Accepted |
+| [ADR-007](adr/ADR-007-container-runtime.md) | Container Runtime Generated into `.kcode/docker/` | Accepted |
+| [ADR-008](adr/ADR-008-on-demand-provisioning.md) | On-Demand Toolchain Provisioning for a Global `kcode` | Accepted |
+| [ADR-009](adr/ADR-009-root-config-precedence.md) | Root-Level Tool Configs Take Precedence | Accepted |
 
 ## Specifications
 
 | Spec | Title | Version |
 |---|---|---|
-| [SPEC-001](spec/SPEC-001-project-detection.md) | Project Detection and Configuration Merging | 1.0.0 |
-| [SPEC-002](spec/SPEC-002-cli-interface.md) | CLI Command Interface and Execution Pipeline | 1.0.0 |
-| [SPEC-003](spec/SPEC-003-tool-runner.md) | Tool Runner Abstraction and Process Execution | 1.0.0 |
+| [SPEC-001](spec/SPEC-001-project-detection.md) | Project Detection and Configuration Merging | 1.2.0 |
+| [SPEC-002](spec/SPEC-002-cli-interface.md) | CLI Command Interface and Execution Pipeline | 1.2.0 |
+| [SPEC-003](spec/SPEC-003-tool-runner.md) | Tool Runner Abstraction and Process Execution | 1.2.0 |
 
 ## Quick Navigation
 

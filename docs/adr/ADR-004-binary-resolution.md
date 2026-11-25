@@ -75,3 +75,15 @@ shell_exec('command -v ' . \escapeshellarg($basename) . ' 2>/dev/null')
 - POSIX `command -v` specification: IEEE Std 1003.1-2017
 - PHP `Phar::running()` documentation
 - Composer `vendor/bin` binary proxy specification
+
+## Amendments
+
+### v1.1.2 — Tier 1 is `.kcode/vendor/bin/`
+
+Tool binaries were never bundled inside `kcode.phar` (ADR-002). Tier 1 became `{project}/.kcode/vendor/bin/{tool}`, installed by `kcode init`; Tier 2 stays `{project}/vendor/bin/{tool}`; Tier 3 stays the global PATH.
+
+### v1.2.0 — Project root and container mode
+
+- Tiers 1 and 2 are resolved from the located project root (SPEC-001 §4.0), not the current directory, so resolution works from subdirectories.
+- In container mode (`--docker`) Tier 3 is skipped: a binary on the host PATH does not exist inside the container. `ComposerAuditRunner` uses the container's `composer`.
+- `kcode run <binary>` resolves Tiers 1 and 2 only.

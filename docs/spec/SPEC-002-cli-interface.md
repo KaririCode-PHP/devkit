@@ -1,8 +1,8 @@
 # SPEC-002: CLI Command Interface and Execution Pipeline
 
-**Version:** 1.0.0
+**Version:** 1.2.0
 **Status:** Normative
-**Date:** 2025-02-28
+**Date:** 2025-02-28 (revised 2026-11-25)
 **Author:** Walmir Silva
 
 ## 1. Purpose
@@ -15,7 +15,10 @@ This specification defines the CLI interface, command dispatch, argument parsing
 kcode <command> [options] [arguments]
 kcode --help | -h | help
 kcode --version | -V
+kcode <command> --docker | --no-docker   (since 1.2.0)
 ```
+
+`--docker` / `--no-docker` are global: they are removed from the arguments before dispatch, wherever they appear before a literal `--`. Precedence: flag › `KCODE_DOCKER` (`1|true|yes|on`, `0|false|no|off`) › `devkit.php` → `docker.enabled`.
 
 Exit codes follow Unix conventions: `0` = success, `1` = tool failure, `127` = binary not found.
 
@@ -23,18 +26,27 @@ Exit codes follow Unix conventions: `0` = success, `1` = tool failure, `127` = b
 
 ### 3.1 Available Commands
 
-| Command | Description | Tools Invoked |
-|---|---|---|
-| `init` | Generate `.kcode/` config directory | None (filesystem only) |
-| `migrate` | Detect and remove redundant deps/configs | None (filesystem + composer.json) |
-| `test` | Run PHPUnit tests | phpunit |
-| `analyse` | Run static analysis | phpstan, psalm |
-| `cs:fix` | Fix code style | php-cs-fixer |
-| `rector` | Run Rector refactoring | rector |
-| `security` | Vulnerability scanning | composer audit |
-| `quality` | Full pipeline | cs-fixer, phpstan, psalm, phpunit |
-| `format` | Apply formatting | cs-fixer, rector |
-| `clean` | Remove build artifacts | None (filesystem only) |
+| Command | Description | Tools Invoked | Toolchain prepared |
+|---|---|---|---|
+| `init` | Generate `.kcode/` and install the toolchain | composer | — |
+| `migrate` | Remove Docker scaffolding, QA `require-dev`, root configs; rewrite scripts | None (filesystem + composer.json + devkit.php) | — |
+| `test` | Run PHPUnit tests | phpunit | yes |
+| `analyse` | Run static analysis | phpstan, psalm | yes |
+| `cs:fix` | Fix code style | php-cs-fixer | yes |
+| `rector` | Run Rector refactoring | rector | yes |
+| `security` | Vulnerability scanning | composer audit | container only |
+| `quality` | Full pipeline | cs-fixer, phpstan, psalm, phpunit | yes |
+| `format` | Apply formatting | cs-fixer, rector | yes |
+| `run` | Run any toolchain binary (since 1.2.0) | `.kcode/vendor/bin/<binary>`, `vendor/bin/<binary>` | yes |
+| `up` | Start the PHP container (since 1.2.0) | docker compose | — |
+| `down` | Stop and remove the containers (since 1.2.0) | docker compose | — |
+| `shell` | Interactive shell in the container (since 1.2.0) | docker compose exec | — |
+| `exec` | Any command in the container (since 1.2.0) | docker compose exec | — |
+| `ps` | Container state (since 1.2.0) | docker compose | — |
+| `logs` | Container logs (since 1.2.0) | docker compose | — |
+| `clean` | Remove build artifacts | None (filesystem only) | — |
+
+"Toolchain prepared" refers to §4.4.
 
 ### 3.2 Command-Specific Options
 
@@ -43,6 +55,8 @@ Exit codes follow Unix conventions: `0` = success, `1` = tool failure, `127` = b
 | Option | Effect |
 |---|---|
 | `--config` | Scaffold a `devkit.php` override file in the project root |
+| `--skip-install` | Generate configs only (no `composer install` in `.kcode/`) |
+| `--lock` | Copy `.kcode/composer.lock` to `devkit.lock` after installing (since 1.2.0) |
 
 #### test
 
@@ -58,6 +72,27 @@ Exit codes follow Unix conventions: `0` = success, `1` = tool failure, `127` = b
 |---|---|
 | `--dry-run` or `--check` | Show findings without making changes |
 | `-n` or `--no-interaction` | Apply all removals without prompting |
+| `--keep-configs` | Keep root tool configs (KaririCode Spec V4.3.3 §31); superseded tool configs are still removed (since 1.2.0) |
+
+#### up / down / shell / exec / ps / logs (since 1.2.0)
+
+| Command | Arguments |
+|---|---|
+| `up` | `--build` forces an image rebuild |
+| `down` | `--volumes` / `-v` also removes volumes |
+| `shell` | optional shell binary (default `sh`) |
+| `exec` | `<command> [arguments...]`, optionally after `--`; exit code is the command's |
+| `ps`, `logs` | passed to `docker compose ps` / `docker compose logs` |
+
+#### run (since 1.2.0)
+
+`kcode run <binary> [arguments...]` — `<binary>` is a name, never a path. Exit code 127 when it exists in neither `.kcode/vendor/bin/` nor `vendor/bin/`.
+
+#### clean
+
+| Option | Effect |
+|---|---|
+| `--all` | Remove the whole `.kcode/` directory (since 1.2.0) |
 
 #### cs:fix
 
@@ -118,6 +153,22 @@ kcode test --filter=testSpecificMethod --verbose
 kcode cs:fix --check --using-cache=no
 kcode analyse --level=7
 ```
+
+### 4.4 Toolchain Preparation (since 1.2.0)
+
+Before a command whose `requiresToolchain()` is `true`, `Application` calls `Devkit::prepareToolchain()`; for `requiresContainer()` only (`security`), it calls `Devkit::prepareContainer()`. A non-zero result aborts the command with that exit code.
+
+`prepareToolchain()` provisions KaririCode components and projects that already have `.kcode/` (ADR-008): regenerate stale configs, start the container in Docker mode, install a missing or stale toolchain, run `composer install` when `vendor/autoload.php` is missing. Each step taken prints one `⚙` line. `KCODE_NO_PROVISION=1` disables provisioning; other projects get a hint to run `kcode init`.
+
+### 4.5 Environment Variables (since 1.2.0)
+
+| Variable | Effect |
+|---|---|
+| `KCODE_DOCKER` | Default for `--docker` / `--no-docker` |
+| `KCODE_NO_PROVISION` | `1` disables on-demand provisioning |
+| `KCODE_DOCKER_BINARY` | Container CLI (default `docker`; for example `podman`) |
+| `COMPOSER_BINARY` | Composer executable used on the host |
+| `XDEBUG_MODE`, `XDEBUG_CONFIG`, `XDEBUG_SESSION` | Forwarded into the container for each exec |
 
 ## 5. Output Formatting
 

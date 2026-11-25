@@ -1,8 +1,8 @@
 # SPEC-001: Project Detection and Configuration Merging
 
-**Version:** 1.0.0
+**Version:** 1.2.0
 **Status:** Normative
-**Date:** 2025-02-28
+**Date:** 2025-02-28 (revised 2026-11-25)
 **Author:** Walmir Silva
 
 ## 1. Purpose
@@ -11,18 +11,27 @@ This specification defines how the devkit detects project structure, loads confi
 
 ## 2. Scope
 
-Covers `ProjectDetector`, `DevkitConfig`, and `ProjectContext` classes. Does not cover config file generation (see SPEC-003) or tool execution (see SPEC-002).
+Covers `ProjectLocator`, `ProjectDetector`, `DevkitConfig`, `ProjectContext` and `DockerSettings`. Does not cover config file generation (see SPEC-003) or tool execution (see SPEC-002).
 
 ## 3. Terminology
 
 | Term | Definition |
 |---|---|
-| **Project root** | Directory containing `composer.json` |
+| **Project root** | Nearest directory, from the current directory upwards, containing `composer.json` (§4.0) |
+| **KaririCode component** | Project whose Composer name starts with `kariricode/`, or that has a `devkit.php` (§4.3.11) |
 | **Devkit directory** | `{project_root}/.kcode/` |
 | **Override file** | `devkit.php` (project root) — optional PHP file returning an associative array |
 | **ProjectContext** | Immutable snapshot containing all resolved configuration values |
 
 ## 4. Detection Pipeline
+
+### 4.0 Project Root Location (since 1.2.0)
+
+```
+ProjectLocator::locate(string $startDirectory): string
+```
+
+Walks up from `$startDirectory` to the nearest directory that contains `composer.json`, so a global `kcode` works from any subdirectory. A start directory inside `.kcode/` is first moved to the directory that owns `.kcode/`, because `.kcode/composer.json` is the generated toolchain manifest. Throws `DevkitException::projectNotDetected()` when the filesystem root is reached. `Devkit::context()` always detects from the located root.
 
 ### 4.1 Entry Point
 
@@ -125,6 +134,33 @@ Override rules are **merged** with ecosystem defaults via `array_merge()`. This 
 
 Override sets **replace** ecosystem defaults entirely (not merged). This is because set order matters and partial merging could produce invalid configurations.
 
+#### 4.3.11 KaririCode Component (since 1.2.0)
+
+| Source | Value |
+|---|---|
+| `devkit.php` exists (even empty) | `true` |
+| `composer.json` → `name` starts with `kariricode/` (case-insensitive) | `true` |
+| otherwise | `false` |
+
+Stored as `ProjectContext::$kaririCodeComponent`. Components are provisioned on demand (ADR-008).
+
+#### 4.3.12 Docker Settings (since 1.2.0)
+
+`devkit.php` → `docker` is parsed into a `DockerSettings` value object. Every key is optional and type-checked; errors name the key as `docker.<key>`.
+
+| Key | Type | Default |
+|---|---|---|
+| `enabled` | bool | `false` (run tools in the container without `--docker`) |
+| `php_version` | string | detected PHP version (§4.3.3) |
+| `image` | ?string | `null` — build `.kcode/docker/Dockerfile` |
+| `extensions` | list<string> | `['pcov', 'xdebug', 'intl', 'zip']` (replaces) |
+| `packages` | list<string> | `[]` — extra Alpine packages |
+| `ini` | array<string, scalar> | `[]` — merged over the kcode php.ini defaults |
+| `environment` | array<string, scalar> | `[]` — merged into the php service environment |
+| `ports` | list<string> | `[]` |
+| `services` | array<string, string\|array> | `[]` — sidecars: image name or Compose service |
+| `service` | array<string, mixed> | `[]` — raw Compose keys merged into the php service (maps merge, lists append, scalars replace) |
+
 ## 5. DevkitConfig
 
 ### 5.1 File Location
@@ -159,7 +195,11 @@ $config->get('source_dirs', null);     // OK: null default bypasses type check
 
 **Rationale for null bypass:** `null` defaults indicate "detect from composer.json if not overridden." The override type is validated implicitly by the consuming code.
 
-### 5.4 Unknown Keys
+### 5.4 Opt-in Marker (since 1.2.0)
+
+`DevkitConfig::$exists` is `true` whenever `devkit.php` exists, even when it returns an empty array. It marks a project as a KaririCode component (§4.3.11).
+
+### 5.5 Unknown Keys
 
 Unknown keys in `devkit.php` are silently ignored. This provides forward-compatibility — a newer devkit version can introduce keys without breaking older config files.
 
@@ -175,6 +215,7 @@ Unknown keys in `devkit.php` are silently ignored. This provides forward-compati
 
 ```php
 $ctx->configPath('phpstan.neon')      // → /project/.kcode/phpstan.neon
+$ctx->rootPath('devkit.lock')         // → /project/devkit.lock (since 1.2.0)
 $ctx->buildPath('coverage')           // → /project/.kcode/build/coverage
 $ctx->relativeSourceDirs()            // → ['src']
 $ctx->relativeTestDirs()              // → ['tests']
