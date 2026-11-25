@@ -97,6 +97,18 @@ abstract class KcodeTestCase extends TestCase
         return ['exitCode' => proc_close($process), 'stdout' => $stdout, 'stderr' => $stderr];
     }
 
+    /**
+     * The `docker compose exec` options kcode adds in this environment: commands
+     * run as the invoking user, so non-root runners (CI) get `--user uid:gid`.
+     */
+    protected function execOptions(): string
+    {
+        $uid = \function_exists('posix_getuid') ? posix_getuid() : 0;
+        $user = 0 === $uid ? '' : \sprintf('--user %d:%d ', $uid, posix_getgid());
+
+        return "exec -T {$user}--workdir {$this->projectRoot} php";
+    }
+
     /** Make the fake `docker compose ps` report the php service as running. */
     protected function markContainerRunning(): void
     {

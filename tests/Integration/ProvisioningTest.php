@@ -154,7 +154,7 @@ final class ProvisioningTest extends KcodeTestCase
         $this->assertSame('', $this->composerCalls(), 'Host composer must not run in Docker mode.');
         $this->assertStringContainsString('up --detach --wait', $calls);
         $this->assertStringContainsString(
-            "exec -T --workdir {$this->projectRoot} php composer install --working-dir={$this->projectRoot}/.kcode",
+            "{$this->execOptions()} composer install --working-dir={$this->projectRoot}/.kcode",
             $calls,
         );
     }

@@ -82,7 +82,7 @@ final class ContainerCommandsTest extends KcodeTestCase
 
         $this->assertSame(0, $result['exitCode'], $result['stderr']);
         $this->assertStringContainsString(
-            "{$this->composePrefix()} exec -T --workdir {$this->projectRoot} php php -v",
+            "{$this->composePrefix()} {$this->execOptions()} php -v",
             $this->dockerCalls(),
         );
         $this->assertStringNotContainsString(' up ', $this->dockerCalls());
