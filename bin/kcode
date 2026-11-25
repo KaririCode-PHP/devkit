@@ -69,7 +69,7 @@ declare(strict_types=1);
     // Tools always run from the project root — inside the PHP container
     // when --docker (or devkit.php docker.enabled) is in effect.
     $container = null !== $context && $options->useDocker($context->docker->enabled)
-        ? new \KaririCode\Devkit\Core\ContainerRuntime($context)
+        ? $devkit->container()
         : null;
 
     $executor = new \KaririCode\Devkit\Core\ProcessExecutor($context->projectRoot ?? (string) \getcwd(), $container);
@@ -105,6 +105,12 @@ declare(strict_types=1);
     $app->register(new \KaririCode\Devkit\Command\SecurityCommand());
     $app->register(new \KaririCode\Devkit\Command\QualityCommand());
     $app->register(new \KaririCode\Devkit\Command\FormatCommand());
+    $app->register(new \KaririCode\Devkit\Command\UpCommand());
+    $app->register(new \KaririCode\Devkit\Command\DownCommand());
+    $app->register(new \KaririCode\Devkit\Command\ShellCommand());
+    $app->register(new \KaririCode\Devkit\Command\ExecCommand());
+    $app->register(new \KaririCode\Devkit\Command\PsCommand());
+    $app->register(new \KaririCode\Devkit\Command\LogsCommand());
     $app->register(new \KaririCode\Devkit\Command\CleanCommand());
 
     // ── Dispatch ──────────────────────────────────────────────────

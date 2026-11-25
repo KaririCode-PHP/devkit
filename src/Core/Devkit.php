@@ -170,10 +170,22 @@ final class Devkit
         return $this->executor ??= new ProcessExecutor($this->context()->projectRoot);
     }
 
-    /** @since 1.2.0 */
+    /**
+     * Container runtime for the current project.
+     *
+     * The engine binary defaults to `docker`; set KCODE_DOCKER_BINARY to use
+     * another Compose-compatible CLI (for example `podman`).
+     *
+     * @since 1.2.0
+     */
     public function container(): ContainerRuntime
     {
-        return new ContainerRuntime($this->context());
+        $binary = getenv('KCODE_DOCKER_BINARY');
+
+        return new ContainerRuntime(
+            $this->context(),
+            \is_string($binary) && '' !== $binary ? $binary : 'docker',
+        );
     }
 
     /**
