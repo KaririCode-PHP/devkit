@@ -84,7 +84,7 @@ final class DevkitTest extends TestCase
     #[Test]
     public function addGeneratorRegistersGenerator(): void
     {
-        $generator = $this->createMock(ConfigGenerator::class);
+        $generator = $this->createStub(ConfigGenerator::class);
         $generator->method('toolName')->willReturn('test-gen');
 
         $this->devkit->addGenerator($generator);
@@ -95,7 +95,7 @@ final class DevkitTest extends TestCase
     #[Test]
     public function addRunnerRegistersRunner(): void
     {
-        $runner = $this->createMock(ToolRunner::class);
+        $runner = $this->createStub(ToolRunner::class);
         $runner->method('toolName')->willReturn('test-runner');
 
         $this->devkit->addRunner($runner);
@@ -105,10 +105,10 @@ final class DevkitTest extends TestCase
     #[Test]
     public function registeredToolsReturnsToolNames(): void
     {
-        $runner1 = $this->createMock(ToolRunner::class);
+        $runner1 = $this->createStub(ToolRunner::class);
         $runner1->method('toolName')->willReturn('phpunit');
 
-        $runner2 = $this->createMock(ToolRunner::class);
+        $runner2 = $this->createStub(ToolRunner::class);
         $runner2->method('toolName')->willReturn('phpstan');
 
         $this->devkit->addRunner($runner1);
@@ -121,7 +121,7 @@ final class DevkitTest extends TestCase
     #[Test]
     public function isToolAvailableReturnsTrueWhenRunnerIsAvailable(): void
     {
-        $runner = $this->createMock(ToolRunner::class);
+        $runner = $this->createStub(ToolRunner::class);
         $runner->method('toolName')->willReturn('my-tool');
         $runner->method('isAvailable')->willReturn(true);
 
@@ -132,7 +132,7 @@ final class DevkitTest extends TestCase
     #[Test]
     public function isToolAvailableReturnsFalseWhenRunnerNotAvailable(): void
     {
-        $runner = $this->createMock(ToolRunner::class);
+        $runner = $this->createStub(ToolRunner::class);
         $runner->method('toolName')->willReturn('my-tool');
         $runner->method('isAvailable')->willReturn(false);
 
@@ -157,7 +157,7 @@ final class DevkitTest extends TestCase
             elapsedSeconds: 0.1,
         );
 
-        $runner = $this->createMock(ToolRunner::class);
+        $runner = $this->createStub(ToolRunner::class);
         $runner->method('toolName')->willReturn('my-tool');
         $runner->method('run')->willReturn($expectedResult);
 
@@ -184,7 +184,7 @@ final class DevkitTest extends TestCase
             elapsedSeconds: 0.1,
         );
 
-        $runner = $this->createMock(ToolRunner::class);
+        $runner = $this->createStub(ToolRunner::class);
         $runner->method('toolName')->willReturn('cs-fixer');
         $runner->method('isAvailable')->willReturn(true);
         $runner->method('run')->willReturn($result);
@@ -198,7 +198,7 @@ final class DevkitTest extends TestCase
     #[Test]
     public function qualitySkipsUnavailableTools(): void
     {
-        $runner = $this->createMock(ToolRunner::class);
+        $runner = $this->createStub(ToolRunner::class);
         $runner->method('toolName')->willReturn('phpstan');
         $runner->method('isAvailable')->willReturn(false);
         $runner->method('run')->willThrowException(new RuntimeException('Should not be called'));
@@ -219,7 +219,7 @@ final class DevkitTest extends TestCase
     #[Test]
     public function initCreatesConfigFiles(): void
     {
-        $generator = $this->createMock(ConfigGenerator::class);
+        $generator = $this->createStub(ConfigGenerator::class);
         $generator->method('toolName')->willReturn('test-gen');
         $generator->method('outputPath')->willReturn('test-config.txt');
         $generator->method('generate')->willReturn('# test config');
