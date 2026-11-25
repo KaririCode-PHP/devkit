@@ -105,6 +105,7 @@ declare(strict_types=1);
     $app->register(new \KaririCode\Devkit\Command\SecurityCommand());
     $app->register(new \KaririCode\Devkit\Command\QualityCommand());
     $app->register(new \KaririCode\Devkit\Command\FormatCommand());
+    $app->register(new \KaririCode\Devkit\Command\RunCommand());
     $app->register(new \KaririCode\Devkit\Command\UpCommand());
     $app->register(new \KaririCode\Devkit\Command\DownCommand());
     $app->register(new \KaririCode\Devkit\Command\ShellCommand());
