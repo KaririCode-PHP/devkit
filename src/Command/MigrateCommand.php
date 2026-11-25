@@ -118,7 +118,7 @@ final class MigrateCommand extends AbstractCommand
 
             if ([] !== $packagesRemoved) {
                 $this->line();
-                $this->warning('Run \033[1mcomposer update\033[0m to apply dependency changes.');
+                $this->warning("Run \033[1mcomposer update\033[0m to apply dependency changes.");
             }
         } else {
             $this->warning('No changes applied.');
@@ -130,7 +130,7 @@ final class MigrateCommand extends AbstractCommand
     private function renderReport(MigrationReport $report): void
     {
         $this->line(\sprintf(
-            '  Found \033[1m%d\033[0m redundant item(s) that kcode replaces:',
+            "  Found \033[1m%d\033[0m redundant item(s) that kcode replaces:",
             $report->totalItems,
         ));
 
@@ -161,7 +161,7 @@ final class MigrateCommand extends AbstractCommand
         }
 
         $this->line();
-        $this->line('  These are replaced by \033[1m.kcode/\033[0m generated configs.');
+        $this->line("  These are replaced by \033[1m.kcode/\033[0m generated configs.");
         $this->line();
     }
 }

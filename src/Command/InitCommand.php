@@ -92,7 +92,7 @@ final class InitCommand extends AbstractCommand
                 'Found %d redundant item(s) that kcode replaces.',
                 $migration->totalItems,
             ));
-            $this->line('  Run \033[1mkcode migrate\033[0m to review and clean up.');
+            $this->line("  Run \033[1mkcode migrate\033[0m to review and clean up.");
         }
 
         return 0;
@@ -186,6 +186,6 @@ final class InitCommand extends AbstractCommand
 
         $this->line();
         $this->info('Scaffolded devkit.php in project root.');
-        $this->line('  Edit it, then run \033[1mkcode init\033[0m to regenerate configs.');
+        $this->line("  Edit it, then run \033[1mkcode init\033[0m to regenerate configs.");
     }
 }
