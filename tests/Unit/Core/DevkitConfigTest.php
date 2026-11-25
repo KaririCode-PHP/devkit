@@ -38,8 +38,20 @@ final class DevkitConfigTest extends TestCase
     {
         $config = new DevkitConfig($this->tmpDir);
 
+        $this->assertFalse($config->exists);
         $this->assertFalse($config->hasOverrides());
         $this->assertSame([], $config->overrides);
+    }
+
+    #[Test]
+    public function emptyConfigFileCountsAsExisting(): void
+    {
+        file_put_contents($this->tmpDir . '/devkit.php', '<?php return [];');
+
+        $config = new DevkitConfig($this->tmpDir);
+
+        $this->assertTrue($config->exists);
+        $this->assertFalse($config->hasOverrides());
     }
 
     #[Test]

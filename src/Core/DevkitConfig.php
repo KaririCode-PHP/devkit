@@ -41,6 +41,19 @@ use KaririCode\Devkit\Exception\ConfigurationException;
  *         'php-cs-fixer'  => '^3.64',
  *         'rector'        => '^2.0',
  *         'psalm'         => '^6.0',
+ *         'mockery/mockery' => '^1.6',        // any Composer package joins the toolchain
+ *     ],
+ *     'docker'           => [                 // container runtime (kcode up / --docker)
+ *         'enabled'      => false,
+ *         'php_version'  => '8.4',
+ *         'image'        => null,
+ *         'extensions'   => ['pcov', 'xdebug', 'intl', 'zip'],
+ *         'packages'     => [],
+ *         'ini'          => [],
+ *         'environment'  => [],
+ *         'ports'        => [],
+ *         'services'     => [],
+ *         'service'      => [],
  *     ],
  * ];
  * ```
@@ -54,11 +67,15 @@ final readonly class DevkitConfig
     /** @var array<string, mixed> */
     public array $overrides;
 
+    /** Whether `devkit.php` exists in the project root (an explicit opt-in). */
+    public bool $exists;
+
     public function __construct(string $projectRoot)
     {
         $configPath = $projectRoot . DIRECTORY_SEPARATOR . self::CONFIG_FILE;
+        $this->exists = is_file($configPath);
 
-        if (! is_file($configPath)) {
+        if (! $this->exists) {
             $this->overrides = [];
 
             return;

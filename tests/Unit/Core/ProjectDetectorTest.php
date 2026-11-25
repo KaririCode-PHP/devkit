@@ -9,6 +9,7 @@ use KaririCode\Devkit\Core\DevkitConfig;
 use KaririCode\Devkit\Core\ProjectContext;
 use KaririCode\Devkit\Core\ProjectDetector;
 use KaririCode\Devkit\Exception\DevkitException;
+use KaririCode\Devkit\ValueObject\DockerSettings;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -20,6 +21,7 @@ use SplFileInfo;
 #[CoversClass(ProjectDetector::class)]
 #[UsesClass(ProjectContext::class)]
 #[UsesClass(DevkitConfig::class)]
+#[UsesClass(DockerSettings::class)]
 final class ProjectDetectorTest extends TestCase
 {
     private string $tmpDir;
@@ -130,6 +132,57 @@ final class ProjectDetectorTest extends TestCase
 
         $ctx = $this->detector->detect($this->tmpDir);
         $this->assertSame(7, $ctx->phpstanLevel);
+    }
+
+    #[Test]
+    public function detectFlagsKaririCodePackagesAsComponents(): void
+    {
+        $this->writeComposer(['name' => 'kariricode/validator']);
+
+        $this->assertTrue($this->detector->detect($this->tmpDir)->kaririCodeComponent);
+    }
+
+    #[Test]
+    public function detectDoesNotFlagThirdPartyPackages(): void
+    {
+        $this->writeComposer(['name' => 'acme/library']);
+
+        $this->assertFalse($this->detector->detect($this->tmpDir)->kaririCodeComponent);
+    }
+
+    #[Test]
+    public function detectTreatsDevkitConfigAsAnOptIn(): void
+    {
+        $this->writeComposer(['name' => 'acme/library']);
+        file_put_contents($this->tmpDir . '/devkit.php', '<?php return [];');
+
+        $this->assertTrue($this->detector->detect($this->tmpDir)->kaririCodeComponent);
+    }
+
+    #[Test]
+    public function detectDefaultsDockerPhpVersionToTheProjectPhpVersion(): void
+    {
+        $this->writeComposer(['name' => 'kariricode/validator', 'require' => ['php' => '^8.5']]);
+
+        $docker = $this->detector->detect($this->tmpDir)->docker;
+
+        $this->assertSame('8.5', $docker->phpVersion);
+        $this->assertFalse($docker->enabled);
+    }
+
+    #[Test]
+    public function detectLoadsDockerOverrides(): void
+    {
+        $this->writeComposer(['name' => 'kariricode/cache']);
+        file_put_contents(
+            $this->tmpDir . '/devkit.php',
+            "<?php return ['docker' => ['enabled' => true, 'services' => ['redis' => 'redis:7-alpine']]];",
+        );
+
+        $docker = $this->detector->detect($this->tmpDir)->docker;
+
+        $this->assertTrue($docker->enabled);
+        $this->assertSame(['redis' => 'redis:7-alpine'], $docker->services);
     }
 
     /** @param array<mixed> $data */

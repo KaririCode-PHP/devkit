@@ -6,6 +6,8 @@ namespace KaririCode\Devkit\Core;
 
 use const DIRECTORY_SEPARATOR;
 
+use KaririCode\Devkit\ValueObject\DockerSettings;
+
 /**
  * Immutable snapshot of a project's structure and devkit configuration.
  *
@@ -22,12 +24,14 @@ final readonly class ProjectContext
     /**
      * @param list<string>          $sourceDirs
      * @param list<string>          $testDirs
-     * @param list<string>          $excludeDirs     Relative to project root
-     * @param array<string, string> $testSuites      Suite name → relative dir
-     * @param list<string>          $coverageExclude Relative to project root
-     * @param array<string, mixed>  $csFixerRules    Merged with KaririCode defaults
+     * @param list<string>          $excludeDirs         Relative to project root
+     * @param array<string, string> $testSuites          Suite name → relative dir
+     * @param list<string>          $coverageExclude     Relative to project root
+     * @param array<string, mixed>  $csFixerRules        Merged with KaririCode defaults
      * @param list<string>          $rectorSets
-     * @param array<string, string> $toolVersions    Tool name → version constraint
+     * @param array<string, string> $toolVersions        Tool name → version constraint
+     * @param bool                  $kaririCodeComponent `kariricode/*` package or project with devkit.php
+     * @param DockerSettings        $docker              Container runtime settings (`kcode up`, `--docker`)
      */
     public function __construct(
         public string $projectRoot,
@@ -44,6 +48,8 @@ final readonly class ProjectContext
         public array $csFixerRules,
         public array $rectorSets,
         public array $toolVersions,
+        public bool $kaririCodeComponent = false,
+        public DockerSettings $docker = new DockerSettings(),
     ) {
         $this->devkitDir = $projectRoot . DIRECTORY_SEPARATOR . '.kcode';
         $this->buildDir = $this->devkitDir . DIRECTORY_SEPARATOR . 'build';
@@ -53,6 +59,12 @@ final readonly class ProjectContext
     public function configPath(string $filename): string
     {
         return $this->devkitDir . DIRECTORY_SEPARATOR . $filename;
+    }
+
+    /** Absolute path to a file in the project root. */
+    public function rootPath(string $filename): string
+    {
+        return $this->projectRoot . DIRECTORY_SEPARATOR . $filename;
     }
 
     /** Absolute path inside `.kcode/build/`. */

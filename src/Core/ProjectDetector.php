@@ -8,6 +8,7 @@ use const DIRECTORY_SEPARATOR;
 use const JSON_THROW_ON_ERROR;
 
 use KaririCode\Devkit\Exception\DevkitException;
+use KaririCode\Devkit\ValueObject\DockerSettings;
 
 /**
  * Builds a ProjectContext by scanning filesystem and merging overrides.
@@ -67,11 +68,13 @@ final class ProjectDetector
             ? $composer['name']
             : basename($workingDirectory);
 
+        $phpVersion = $config->get('php_version', $this->detectPhpVersion($composer));
+
         return new ProjectContext(
             projectRoot: $workingDirectory,
             projectName: $config->get('project_name', $projectName),
             namespace: $config->get('namespace', $this->detectNamespace($composer)),
-            phpVersion: $config->get('php_version', $this->detectPhpVersion($composer)),
+            phpVersion: $phpVersion,
             phpstanLevel: $config->get('phpstan_level', 9),
             psalmLevel: $config->get('psalm_level', 3),
             sourceDirs: $sourceDirs,
@@ -82,6 +85,8 @@ final class ProjectDetector
             csFixerRules: array_merge(self::DEFAULT_CS_RULES, $config->get('cs_fixer_rules', [])),
             rectorSets: $config->get('rector_sets', self::DEFAULT_RECTOR_SETS),
             toolVersions: $config->toolVersions(),
+            kaririCodeComponent: $config->exists || str_starts_with(strtolower($projectName), self::KARIRICODE_VENDOR),
+            docker: DockerSettings::fromArray($config->get('docker', []), $phpVersion),
         );
     }
 
@@ -173,6 +178,8 @@ final class ProjectDetector
     }
 
     // ── KaririCode Defaults ───────────────────────────────────────
+
+    private const string KARIRICODE_VENDOR = 'kariricode/';
 
     private const array DEFAULT_CS_RULES = [
         '@PSR12' => true,
