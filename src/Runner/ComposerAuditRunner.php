@@ -41,6 +41,11 @@ final class ComposerAuditRunner extends AbstractToolRunner
     #[Override]
     protected function binary(): ?string
     {
+        // Inside the PHP container Composer is always on PATH.
+        if ($this->executor->isContainerized()) {
+            return 'composer';
+        }
+
         /** @psalm-suppress ForbiddenCode — shell_exec is intentional for binary resolution; input is escaped */
         $global = trim((string) shell_exec('command -v ' . escapeshellarg('composer') . ' 2>/dev/null'));
 

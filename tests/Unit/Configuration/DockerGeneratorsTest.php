@@ -8,6 +8,7 @@ use KaririCode\Devkit\Configuration\DockerComposeGenerator;
 use KaririCode\Devkit\Configuration\DockerfileGenerator;
 use KaririCode\Devkit\Configuration\PhpIniGenerator;
 use KaririCode\Devkit\Configuration\YamlWriter;
+use KaririCode\Devkit\Core\ContainerRuntime;
 use KaririCode\Devkit\Core\ProjectContext;
 use KaririCode\Devkit\ValueObject\DockerSettings;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -19,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(DockerfileGenerator::class)]
 #[CoversClass(PhpIniGenerator::class)]
 #[UsesClass(YamlWriter::class)]
+#[UsesClass(ContainerRuntime::class)]
 #[UsesClass(ProjectContext::class)]
 #[UsesClass(DockerSettings::class)]
 final class DockerGeneratorsTest extends TestCase
@@ -217,13 +219,5 @@ final class DockerGeneratorsTest extends TestCase
         // Maps merge: overrides win.
         $this->assertStringContainsString('HOME: "/home/dev"', $compose);
         $this->assertStringContainsString('COMPOSER_HOME: "/tmp/composer"', $compose);
-    }
-
-    #[Test]
-    public function projectNameIsAValidComposeProjectName(): void
-    {
-        $this->assertSame('kcode-kariricode-validator', DockerComposeGenerator::projectName($this->makeContext()));
-        $this->assertSame('kcode-acme-my-lib-v2', DockerComposeGenerator::projectName($this->makeContext([], 'Acme/My_Lib.v2')));
-        $this->assertSame('kcode-project', DockerComposeGenerator::projectName($this->makeContext([], '///')));
     }
 }

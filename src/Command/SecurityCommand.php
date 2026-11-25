@@ -26,6 +26,13 @@ final class SecurityCommand extends AbstractCommand
         return 'Run composer audit for security vulnerabilities';
     }
 
+    /** composer audit needs no .kcode/ tools, but must reach the container in --docker mode. */
+    #[Override]
+    public function requiresContainer(): bool
+    {
+        return true;
+    }
+
     #[Override]
     public function execute(Devkit $devkit, array $arguments): int
     {

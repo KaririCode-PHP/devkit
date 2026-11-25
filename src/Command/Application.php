@@ -64,6 +64,18 @@ final class Application
         }
 
         try {
+            $preparationExitCode = match (true) {
+                $command->requiresToolchain() => $this->devkit->prepareToolchain(),
+                $command->requiresContainer() => $this->devkit->prepareContainer(),
+                default => 0,
+            };
+
+            if (0 !== $preparationExitCode) {
+                fwrite(STDERR, "\033[31m✗\033[0m Toolchain preparation failed (exit {$preparationExitCode})." . PHP_EOL);
+
+                return $preparationExitCode;
+            }
+
             return $command->execute($this->devkit, $argv);
         } catch (Throwable $exception) {
             fwrite(STDERR, "\033[31m✗\033[0m {$exception->getMessage()}" . PHP_EOL);
@@ -120,5 +132,7 @@ final class Application
         fwrite(STDOUT, "\033[33mOptions:\033[0m" . PHP_EOL);
         fwrite(STDOUT, "  \033[32m-h, --help\033[0m     Show this help" . PHP_EOL);
         fwrite(STDOUT, "  \033[32m-V, --version\033[0m  Show version" . PHP_EOL);
+        fwrite(STDOUT, "  \033[32m--docker\033[0m       Run tools inside the PHP container (KCODE_DOCKER=1)" . PHP_EOL);
+        fwrite(STDOUT, "  \033[32m--no-docker\033[0m    Run tools on the host even when devkit.php enables Docker" . PHP_EOL);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KaririCode\Devkit\Configuration;
 
 use KaririCode\Devkit\Contract\ConfigGenerator;
+use KaririCode\Devkit\Core\ContainerRuntime;
 use KaririCode\Devkit\Core\ProjectContext;
 use Override;
 
@@ -28,7 +29,6 @@ use const PHP_EOL;
  */
 final readonly class DockerComposeGenerator implements ConfigGenerator
 {
-    public const string SERVICE = 'php';
     public const string PHP_INI_TARGET = '/usr/local/etc/php/conf.d/zz-kcode.ini';
 
     /** @var array<string, string> */
@@ -49,14 +49,6 @@ final readonly class DockerComposeGenerator implements ConfigGenerator
     ) {
     }
 
-    /** Compose project name: "kcode-" followed by the slugged package name. */
-    public static function projectName(ProjectContext $context): string
-    {
-        $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($context->projectName)), '-');
-
-        return 'kcode-' . ('' !== $slug ? $slug : 'project');
-    }
-
     #[Override]
     public function toolName(): string
     {
@@ -72,7 +64,7 @@ final readonly class DockerComposeGenerator implements ConfigGenerator
     #[Override]
     public function generate(ProjectContext $context): string
     {
-        $services = [self::SERVICE => $this->phpService($context)];
+        $services = [ContainerRuntime::SERVICE => $this->phpService($context)];
 
         foreach ($context->docker->services as $name => $definition) {
             $services[$name] = \is_string($definition) ? ['image' => $definition] : $definition;
@@ -84,7 +76,7 @@ final readonly class DockerComposeGenerator implements ConfigGenerator
         ]);
 
         return $header . PHP_EOL . $this->yaml->dump([
-            'name' => self::projectName($context),
+            'name' => ContainerRuntime::projectNameFor($context),
             'services' => $services,
         ]);
     }

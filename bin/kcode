@@ -35,6 +35,10 @@ declare(strict_types=1);
 
     require $autoloader;
 
+    // ── Global options (--docker / --no-docker / KCODE_DOCKER) ───────
+
+    $options = \KaririCode\Devkit\Core\RuntimeOptions::parse($argv, \getenv());
+
     // ── Wire object graph ─────────────────────────────────────────
 
     $detector = new \KaririCode\Devkit\Core\ProjectDetector();
@@ -62,8 +66,17 @@ declare(strict_types=1);
         $context = null;
     }
 
-    // Tools always run from the project root.
-    $executor = new \KaririCode\Devkit\Core\ProcessExecutor($context->projectRoot ?? (string) \getcwd());
+    // Tools always run from the project root — inside the PHP container
+    // when --docker (or devkit.php docker.enabled) is in effect.
+    $container = null !== $context && $options->useDocker($context->docker->enabled)
+        ? new \KaririCode\Devkit\Core\ContainerRuntime($context)
+        : null;
+
+    $executor = new \KaririCode\Devkit\Core\ProcessExecutor($context->projectRoot ?? (string) \getcwd(), $container);
+
+    if (null !== $context) {
+        $devkit->useExecutor($executor);
+    }
 
     if (null !== $context) {
         $devkit->addRunner(new \KaririCode\Devkit\Runner\PhpUnitRunner($executor, $context));
@@ -96,5 +109,5 @@ declare(strict_types=1);
 
     // ── Dispatch ──────────────────────────────────────────────────
 
-    exit($app->run($argv));
+    exit($app->run($options->arguments));
 })($argv ?? []);

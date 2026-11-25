@@ -25,6 +25,29 @@ abstract class AbstractCommand
     /** @param list<string> $arguments Raw CLI arguments after command name. */
     abstract public function execute(Devkit $devkit, array $arguments): int;
 
+    /**
+     * Whether the command runs toolchain binaries.
+     *
+     * When true, Application prepares the toolchain first (container start
+     * in `--docker` mode, `.kcode/` provisioning inside KaririCode components).
+     *
+     * @since 1.2.0
+     */
+    public function requiresToolchain(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Whether the command must reach the PHP container in `--docker` mode.
+     *
+     * @since 1.2.0
+     */
+    public function requiresContainer(): bool
+    {
+        return $this->requiresToolchain();
+    }
+
     // ── Output Helpers ────────────────────────────────────────────
 
     protected function info(string $message): void

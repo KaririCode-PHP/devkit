@@ -27,6 +27,12 @@ final class AnalyseCommand extends AbstractCommand
     }
 
     #[Override]
+    public function requiresToolchain(): bool
+    {
+        return true;
+    }
+
+    #[Override]
     public function execute(Devkit $devkit, array $arguments): int
     {
         $this->banner('KaririCode Devkit — Analyse');
