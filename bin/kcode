@@ -47,6 +47,9 @@ declare(strict_types=1);
     $devkit->addGenerator(new \KaririCode\Devkit\Configuration\CsFixerConfigGenerator());
     $devkit->addGenerator(new \KaririCode\Devkit\Configuration\RectorConfigGenerator());
     $devkit->addGenerator(new \KaririCode\Devkit\Configuration\PsalmConfigGenerator());
+    $devkit->addGenerator(new \KaririCode\Devkit\Configuration\DockerfileGenerator());
+    $devkit->addGenerator(new \KaririCode\Devkit\Configuration\PhpIniGenerator());
+    $devkit->addGenerator(new \KaririCode\Devkit\Configuration\DockerComposeGenerator());
 
     // Detect project context eagerly — runners need it at registration.
     // The project root is the nearest ancestor holding composer.json, so a
