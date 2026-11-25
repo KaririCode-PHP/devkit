@@ -11,6 +11,7 @@ use KaririCode\Devkit\Core\Devkit;
 use KaririCode\Devkit\Core\DevkitConfig;
 use KaririCode\Devkit\Core\ProjectContext;
 use KaririCode\Devkit\Core\ProjectDetector;
+use KaririCode\Devkit\Core\ProjectLocator;
 use KaririCode\Devkit\Exception\DevkitException;
 use KaririCode\Devkit\ValueObject\QualityReport;
 use KaririCode\Devkit\ValueObject\ToolResult;
@@ -26,6 +27,7 @@ use SplFileInfo;
 #[CoversClass(Devkit::class)]
 #[UsesClass(ProjectContext::class)]
 #[UsesClass(ProjectDetector::class)]
+#[UsesClass(ProjectLocator::class)]
 #[UsesClass(DevkitConfig::class)]
 #[UsesClass(QualityReport::class)]
 #[UsesClass(ToolResult::class)]
@@ -71,6 +73,14 @@ final class DevkitTest extends TestCase
     {
         $ctx = $this->devkit->context($this->tmpDir);
         $this->assertInstanceOf(ProjectContext::class, $ctx);
+    }
+
+    #[Test]
+    public function contextLocatesProjectRootFromSubdirectory(): void
+    {
+        $ctx = $this->devkit->context($this->tmpDir . '/src');
+
+        $this->assertSame(realpath($this->tmpDir), $ctx->projectRoot);
     }
 
     #[Test]

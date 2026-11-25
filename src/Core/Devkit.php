@@ -48,6 +48,7 @@ final class Devkit
     public function __construct(
         private readonly ProjectDetector $detector,
         private readonly ComposerResolver $composerResolver = new ComposerResolver(),
+        private readonly ProjectLocator $locator = new ProjectLocator(),
     ) {
     }
 
@@ -70,17 +71,24 @@ final class Devkit
 
     // ── Context ───────────────────────────────────────────────────
 
-    public function context(string $workingDirectory = '.'): ProjectContext
+    /**
+     * Detect the project context once and cache it.
+     *
+     * The project root is the nearest ancestor of `$workingDirectory` (default:
+     * the current directory) that contains `composer.json`, so a global `kcode`
+     * works from any subdirectory of a project.
+     */
+    public function context(?string $workingDirectory = null): ProjectContext
     {
         return $this->context ??= $this->detector->detect(
-            realpath($workingDirectory) ?: $workingDirectory,
+            $this->locator->locate($workingDirectory ?? (getcwd() ?: '.')),
         );
     }
 
     // ── Init ──────────────────────────────────────────────────────
 
     /** Generate all config files inside `.kcode/`. Returns file count. */
-    public function init(string $workingDirectory = '.'): int
+    public function init(?string $workingDirectory = null): int
     {
         $context = $this->context($workingDirectory);
         $this->ensureDirectories($context);
@@ -117,7 +125,7 @@ final class Devkit
      *
      * @since 1.0.0
      */
-    public function installTools(string $workingDirectory = '.'): int
+    public function installTools(?string $workingDirectory = null): int
     {
         $context = $this->context($workingDirectory);
         $devkitDirectory = $context->devkitDir;
@@ -143,7 +151,7 @@ final class Devkit
             $command,
             [0 => STDIN, 1 => STDOUT, 2 => STDERR],
             $pipes,
-            $workingDirectory,
+            $context->projectRoot,
         );
 
         if (! \is_resource($process)) {
@@ -213,7 +221,7 @@ final class Devkit
 
     // ── Clean ─────────────────────────────────────────────────────
 
-    public function clean(string $workingDirectory = '.'): void
+    public function clean(?string $workingDirectory = null): void
     {
         $buildDir = $this->context($workingDirectory)->buildDir;
 

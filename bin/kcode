@@ -37,8 +37,6 @@ declare(strict_types=1);
 
     // ── Wire object graph ─────────────────────────────────────────
 
-    $workingDirectory = (string) \getcwd();
-
     $detector = new \KaririCode\Devkit\Core\ProjectDetector();
     $devkit = new \KaririCode\Devkit\Core\Devkit($detector);
 
@@ -50,18 +48,19 @@ declare(strict_types=1);
     $devkit->addGenerator(new \KaririCode\Devkit\Configuration\RectorConfigGenerator());
     $devkit->addGenerator(new \KaririCode\Devkit\Configuration\PsalmConfigGenerator());
 
-    // Register tool runners — require ProcessExecutor and ProjectContext
-    $executor = new \KaririCode\Devkit\Core\ProcessExecutor($workingDirectory);
-
     // Detect project context eagerly — runners need it at registration.
-    // Graceful null when no composer.json found (help/version still work).
+    // The project root is the nearest ancestor holding composer.json, so a
+    // global kcode works from any subdirectory. Graceful null when none is
+    // found (help/version still work).
     try {
-        $context = $devkit->context($workingDirectory);
+        $context = $devkit->context();
     } catch (\KaririCode\Devkit\Exception\DevkitException) {
-        // Help and version work without project context.
         // Commands requiring context will re-detect and throw at execution time.
         $context = null;
     }
+
+    // Tools always run from the project root.
+    $executor = new \KaririCode\Devkit\Core\ProcessExecutor($context->projectRoot ?? (string) \getcwd());
 
     if (null !== $context) {
         $devkit->addRunner(new \KaririCode\Devkit\Runner\PhpUnitRunner($executor, $context));
