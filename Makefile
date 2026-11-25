@@ -23,7 +23,8 @@ SHELL         := /bin/bash
 
 PHP         ?= php
 COMPOSER    ?= composer
-KCODE       := vendor/bin/kcode
+KCODE_BIN   := bin/kcode
+KCODE       := $(PHP) $(KCODE_BIN)
 PHAR_BUILDER := bin/build-phar.php
 
 BUILD_DIR   := build
@@ -229,7 +230,7 @@ check-env: ## Show build environment info (PHP, Composer, Box, Git, phar.readonl
 	@printf "  $(_BOLD)PHP$(_RESET)            $$($(PHP) -v 2>/dev/null | head -1 || echo 'not found')\n"
 	@printf "  $(_BOLD)Composer$(_RESET)       "; $(COMPOSER) --version 2>/dev/null | head -1 || printf "not found\n"
 	@printf "  $(_BOLD)PHAR builder$(_RESET)   "; test -f $(PHAR_BUILDER) && printf "bin/build-phar.php (OK)\n" || printf "not found\n"
-	@printf "  $(_BOLD)kcode$(_RESET)          "; test -f $(KCODE) && $(PHP) $(KCODE) --version 2>/dev/null || printf "not found — run make install\n"
+	@printf "  $(_BOLD)kcode$(_RESET)          "; test -f $(KCODE_BIN) && $(KCODE) --version 2>/dev/null || printf "not found — run make install\n"
 	@printf "  $(_BOLD)Git tag$(_RESET)        $(VERSION) ($(COMMIT))\n"
 	@printf "  $(_BOLD)phar.readonly$(_RESET)  $$($(PHP) -r 'echo ini_get("phar.readonly") ? "On (WARN: use php -d phar.readonly=0 for builds)" : "Off (OK)";' 2>/dev/null)\n"
 	@printf "\n"
@@ -249,8 +250,8 @@ _require-vendor:
 	}
 
 _require-kcode:
-	@test -f $(KCODE) || { \
-		printf "\n  $(_RED)✗$(_RESET) $(KCODE) not found. Run $(_BOLD)make install$(_RESET) first.\n\n"; \
+	@test -f $(KCODE_BIN) || { \
+		printf "\n  $(_RED)✗$(_RESET) $(KCODE_BIN) not found.\n\n"; \
 		exit 1; \
 	}
 
