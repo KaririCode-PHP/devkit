@@ -26,7 +26,8 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * Root-level tool configs (Spec V4.3.3 §31) win over the generated ones.
+ * Root-level tool configs (Spec V4.3.3 §31) win over the generated ones
+ * only when the project opts in with devkit.php → 'root_configs' => true.
  */
 #[CoversClass(AbstractToolRunner::class)]
 #[CoversClass(PhpUnitRunner::class)]
@@ -59,7 +60,12 @@ final class ConfigPrecedenceTest extends TestCase
 
         $this->root = (string) realpath($this->root);
         $this->executor = new ProcessExecutor($this->root);
-        $this->context = new ProjectContext(
+        $this->context = $this->makeContext(rootConfigs: true);
+    }
+
+    private function makeContext(bool $rootConfigs): ProjectContext
+    {
+        return new ProjectContext(
             projectRoot: $this->root,
             projectName: 'kariricode/property-inspector',
             namespace: 'KaririCode\\PropertyInspector',
@@ -74,6 +80,7 @@ final class ConfigPrecedenceTest extends TestCase
             csFixerRules: [],
             rectorSets: [],
             toolVersions: [],
+            rootConfigs: $rootConfigs,
         );
     }
 
@@ -132,6 +139,30 @@ final class ConfigPrecedenceTest extends TestCase
             $this->assertStringContainsString("{$this->root}/{$candidate}", $output);
             $this->assertStringNotContainsString("/.kcode/{$generated}", $output);
 
+            unlink($this->root . '/' . $candidate);
+        }
+    }
+
+    /**
+     * @param class-string<AbstractToolRunner> $runnerClass
+     * @param list<string>                     $rootCandidates
+     */
+    #[Test]
+    #[DataProvider('runners')]
+    public function ignoresRootConfigsWithoutTheOptIn(string $runnerClass, string $generated, array $rootCandidates): void
+    {
+        // A stale root config left in a migrated component must not replace the generated rules.
+        $this->context = $this->makeContext(rootConfigs: false);
+
+        foreach ($rootCandidates as $candidate) {
+            touch($this->root . '/' . $candidate);
+        }
+
+        $output = $this->runWith($runnerClass);
+
+        $this->assertStringContainsString("{$this->root}/.kcode/{$generated}", $output);
+
+        foreach ($rootCandidates as $candidate) {
             unlink($this->root . '/' . $candidate);
         }
     }

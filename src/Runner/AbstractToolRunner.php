@@ -72,15 +72,24 @@ abstract class AbstractToolRunner implements ToolRunner
     /**
      * Configuration file the tool should use.
      *
-     * A configuration committed at the project root wins over the generated
-     * one: components that keep root configs (KaririCode Spec V4.3.3 §31)
-     * run with them, while their tools still come from `.kcode/vendor/`.
-     * Candidates are checked in order, mirroring each tool's own lookup.
+     * The generated `.kcode/` config, unless the project opted in with
+     * devkit.php → `'root_configs' => true`: then a config committed at the
+     * project root wins (KaririCode Spec V4.3.3 §31), while the tools still
+     * come from `.kcode/vendor/`. Candidates are checked in order, mirroring
+     * each tool's own lookup.
+     *
+     * Opt-in since 1.2.1: in 1.2.0 root configs always won, and stale root
+     * configs left in migrated components silently replaced the generated
+     * rules (ADR-009).
      *
      * @since 1.2.0
      */
     protected function configFile(string $generated, string ...$rootCandidates): string
     {
+        if (! $this->context->rootConfigs) {
+            return $this->context->configPath($generated);
+        }
+
         foreach ($rootCandidates as $candidate) {
             $path = $this->context->rootPath($candidate);
 

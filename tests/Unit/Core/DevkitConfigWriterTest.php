@@ -97,6 +97,40 @@ final class DevkitConfigWriterTest extends TestCase
     }
 
     #[Test]
+    public function enableRootConfigsWritesAMinimalFile(): void
+    {
+        $this->assertTrue($this->writer->enableRootConfigs($this->root));
+
+        $this->assertTrue(new DevkitConfig($this->root)->get('root_configs', false));
+    }
+
+    #[Test]
+    public function enableRootConfigsKeepsTheExistingKeys(): void
+    {
+        file_put_contents($this->root . '/devkit.php', "<?php\n\nreturn [\n    'tools' => ['mockery/mockery' => '^1.6'],\n];\n");
+
+        $this->assertTrue($this->writer->enableRootConfigs($this->root));
+
+        $config = new DevkitConfig($this->root);
+
+        $this->assertTrue($config->get('root_configs', false));
+        $this->assertSame(['mockery/mockery' => '^1.6'], $config->toolVersions());
+    }
+
+    #[Test]
+    public function enableRootConfigsRespectsAnExplicitValue(): void
+    {
+        file_put_contents($this->root . '/devkit.php', "<?php\n\nreturn ['root_configs' => true];\n");
+        $this->assertTrue($this->writer->enableRootConfigs($this->root));
+
+        $disabled = "<?php\n\nreturn ['root_configs' => false];\n";
+        file_put_contents($this->root . '/devkit.php', $disabled);
+
+        $this->assertFalse($this->writer->enableRootConfigs($this->root));
+        $this->assertSame($disabled, file_get_contents($this->root . '/devkit.php'));
+    }
+
+    #[Test]
     public function nothingToAddIsASuccess(): void
     {
         $this->assertTrue($this->writer->addTools($this->root, []));

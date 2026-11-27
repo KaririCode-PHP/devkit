@@ -32,6 +32,7 @@ final readonly class ProjectContext
      * @param array<string, string> $toolVersions        Tool name → version constraint
      * @param bool                  $kaririCodeComponent `kariricode/*` package or project with devkit.php
      * @param DockerSettings        $docker              Container runtime settings (`kcode up`, `--docker`)
+     * @param bool                  $rootConfigs         Use committed root tool configs instead of the generated ones (since 1.2.1)
      */
     public function __construct(
         public string $projectRoot,
@@ -50,6 +51,7 @@ final readonly class ProjectContext
         public array $toolVersions,
         public bool $kaririCodeComponent = false,
         public DockerSettings $docker = new DockerSettings(),
+        public bool $rootConfigs = false,
     ) {
         $this->devkitDir = $projectRoot . DIRECTORY_SEPARATOR . '.kcode';
         $this->buildDir = $this->devkitDir . DIRECTORY_SEPARATOR . 'build';

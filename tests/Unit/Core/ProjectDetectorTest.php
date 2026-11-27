@@ -171,6 +171,24 @@ final class ProjectDetectorTest extends TestCase
     }
 
     #[Test]
+    public function detectKeepsRootConfigsOffByDefault(): void
+    {
+        $this->writeComposer(['name' => 'kariricode/normalizer']);
+        file_put_contents($this->tmpDir . '/.php-cs-fixer.php', '<?php return [];');
+
+        $this->assertFalse($this->detector->detect($this->tmpDir)->rootConfigs);
+    }
+
+    #[Test]
+    public function detectReadsTheRootConfigsOptIn(): void
+    {
+        $this->writeComposer(['name' => 'kariricode/property-inspector']);
+        file_put_contents($this->tmpDir . '/devkit.php', "<?php return ['root_configs' => true];");
+
+        $this->assertTrue($this->detector->detect($this->tmpDir)->rootConfigs);
+    }
+
+    #[Test]
     public function detectLoadsDockerOverrides(): void
     {
         $this->writeComposer(['name' => 'kariricode/cache']);

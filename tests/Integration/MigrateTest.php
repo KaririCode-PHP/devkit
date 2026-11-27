@@ -116,6 +116,24 @@ final class MigrateTest extends KcodeTestCase
         $this->assertFileExists($this->projectRoot . '/phpunit.xml');
         $this->assertFileDoesNotExist($this->projectRoot . '/phpcs.xml');
         $this->assertFileDoesNotExist($this->projectRoot . '/.docker');
+        $this->assertStringContainsString("'root_configs' => true", (string) file_get_contents($this->projectRoot . '/devkit.php'));
+        $this->assertStringContainsString("'mockery/mockery' => '^1.6'", (string) file_get_contents($this->projectRoot . '/devkit.php'));
+
+        // The kept root config is the one kcode now runs PHPUnit with.
+        $test = $this->kcode(['test']);
+
+        $this->assertStringContainsString("phpunit --configuration {$this->projectRoot}/phpunit.xml ", $test['stdout']);
+    }
+
+    #[Test]
+    public function staleRootConfigsAreIgnoredWithoutTheOptIn(): void
+    {
+        // Same layout as normalizer/validator after the 1.2.0 release: a legacy
+        // root config left behind, no root_configs opt-in.
+        $result = $this->kcode(['test']);
+
+        $this->assertSame(0, $result['exitCode'], $result['stdout'] . $result['stderr']);
+        $this->assertStringContainsString("phpunit --configuration {$this->projectRoot}/.kcode/phpunit.xml.dist", $result['stdout']);
     }
 
     #[Test]

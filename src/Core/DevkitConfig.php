@@ -43,6 +43,7 @@ use KaririCode\Devkit\Exception\ConfigurationException;
  *         'psalm'         => '^6.0',
  *         'mockery/mockery' => '^1.6',        // any Composer package joins the toolchain
  *     ],
+ *     'root_configs'     => false,            // true: committed root tool configs win (since 1.2.1)
  *     'docker'           => [                 // container runtime (kcode up / --docker)
  *         'enabled'      => false,
  *         'php_version'  => '8.4',

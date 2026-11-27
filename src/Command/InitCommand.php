@@ -93,7 +93,16 @@ final class InitCommand extends AbstractCommand
         }
 
         // ── Phase 4: Hint about redundant legacy configs ──────────────────
-        $migration = $this->detector->detect($context->projectRoot);
+        // With root_configs enabled, root tool configs are in use, not redundant.
+        $migration = $this->detector->detect($context->projectRoot, $context->rootConfigs);
+
+        if ($context->rootConfigs) {
+            $inUse = $this->detector->rootToolConfigs($context->projectRoot);
+
+            if ([] !== $inUse) {
+                $this->info('Root configs in use (root_configs): ' . implode(', ', $inUse));
+            }
+        }
 
         if ($migration->hasRedundancies) {
             $this->line();

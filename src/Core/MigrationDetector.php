@@ -144,6 +144,18 @@ final class MigrationDetector
         );
     }
 
+    /**
+     * Root tool configs present in the project (the files `--keep-configs` keeps).
+     *
+     * @return list<string>
+     *
+     * @since 1.2.1
+     */
+    public function rootToolConfigs(string $projectRoot): array
+    {
+        return $this->existing($projectRoot, self::REPLACED_CONFIG_FILES, files: true);
+    }
+
     /** @return array<array-key, mixed> */
     private function readComposer(string $projectRoot): array
     {

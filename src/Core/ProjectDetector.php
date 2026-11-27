@@ -87,6 +87,7 @@ final class ProjectDetector
             toolVersions: $config->toolVersions(),
             kaririCodeComponent: $config->exists || str_starts_with(strtolower($projectName), self::KARIRICODE_VENDOR),
             docker: DockerSettings::fromArray($config->get('docker', []), $phpVersion),
+            rootConfigs: $config->get('root_configs', false),
         );
     }
 

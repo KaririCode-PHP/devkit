@@ -60,13 +60,27 @@ final class MigrateCommand extends AbstractCommand
         $context = $devkit->context();
         $report = $this->detector->detect($context->projectRoot, $keepConfigs);
 
-        if (! $report->hasRedundancies) {
+        // --keep-configs opts the project into its root configs (devkit.php → root_configs).
+        $keptConfigs = $keepConfigs ? $this->detector->rootToolConfigs($context->projectRoot) : [];
+        $enableRootConfigs = [] !== $keptConfigs && ! $context->rootConfigs;
+
+        if (! $report->hasRedundancies && ! $enableRootConfigs) {
             $this->info('Nothing to migrate: no Docker scaffolding, QA tools or redundant configs found.');
 
             return 0;
         }
 
         $this->renderReport($report, $keepConfigs);
+
+        if ($enableRootConfigs) {
+            $this->section("Root tool configs kept — devkit.php → 'root_configs' => true");
+
+            foreach ($keptConfigs as $file) {
+                $this->line("    \033[32m✓\033[0m {$file}");
+            }
+
+            $this->line();
+        }
 
         if ($dryRun) {
             $this->warning('Dry-run mode — no changes applied.');
@@ -110,10 +124,28 @@ final class MigrateCommand extends AbstractCommand
             }
         }
 
+        // ── devkit.php root_configs ───────────────────────────────
+        $rootConfigsEnabled = false;
+
+        if ($enableRootConfigs) {
+            if ($noInteraction || $this->confirm("Set 'root_configs' => true in devkit.php so kcode uses the kept configs?")) {
+                $rootConfigsEnabled = $this->service->enableRootConfigs($report);
+
+                $rootConfigsEnabled
+                    ? $this->info("devkit.php: 'root_configs' => true — kcode runs the tools with the root configs.")
+                    : $this->warning("Could not update devkit.php — add 'root_configs' => true yourself.");
+            } else {
+                $this->warning('Root configs kept but not enabled: kcode keeps using the generated .kcode/ configs.');
+            }
+        }
+
         // ── Summary ──────────────────────────────────────────────
         $this->section('Summary');
 
-        $totalActioned = $removedPaths + \count($manifest['packages']) + \count($manifest['scripts']);
+        $totalActioned = $removedPaths
+            + \count($manifest['packages'])
+            + \count($manifest['scripts'])
+            + ($rootConfigsEnabled ? 1 : 0);
 
         if (0 === $totalActioned) {
             $this->warning('No changes applied.');

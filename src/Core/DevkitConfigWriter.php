@@ -10,7 +10,7 @@ use const PHP_EOL;
 use Throwable;
 
 /**
- * Adds packages to the `tools` key of `devkit.php`.
+ * Adds packages to the `tools` key of `devkit.php` and enables `root_configs`.
  *
  * Used by `kcode migrate` to move test-support libraries (Mockery,
  * Infection, ParaTest, ...) out of `require-dev` and into the `.kcode/`
@@ -43,7 +43,7 @@ final readonly class DevkitConfigWriter
         $path = $projectRoot . DIRECTORY_SEPARATOR . self::CONFIG_FILE;
 
         if (! is_file($path)) {
-            return false !== file_put_contents($path, $this->newFile($packages));
+            return false !== file_put_contents($path, $this->newFile($this->toolsEntry($packages)));
         }
 
         $current = $this->load($path);
@@ -61,8 +61,45 @@ final readonly class DevkitConfigWriter
             );
         }
 
+        return $this->insert($path, $this->toolsEntry($packages));
+    }
+
+    /**
+     * Set `'root_configs' => true`, so committed root tool configs win over
+     * the generated ones (used by `kcode migrate --keep-configs`).
+     *
+     * @return bool True when devkit.php enables root configs afterwards
+     *
+     * @since 1.2.1
+     */
+    public function enableRootConfigs(string $projectRoot): bool
+    {
+        $path = $projectRoot . DIRECTORY_SEPARATOR . self::CONFIG_FILE;
+        $entry = '    // ── Root tool configs win over .kcode/ (KaririCode Spec V4.3.3 §31) ──' . PHP_EOL
+            . "    'root_configs' => true," . PHP_EOL;
+
+        if (! is_file($path)) {
+            return false !== file_put_contents($path, $this->newFile($entry));
+        }
+
+        $current = $this->load($path);
+
+        if (null === $current) {
+            return false;
+        }
+
+        if (\array_key_exists('root_configs', $current)) {
+            return true === $current['root_configs'];
+        }
+
+        return $this->insert($path, $entry);
+    }
+
+    /** Insert an entry before the closing `];` of the returned array. */
+    private function insert(string $path, string $entry): bool
+    {
         $source = (string) file_get_contents($path);
-        $updated = preg_replace('/\n\];\s*$/', PHP_EOL . $this->toolsEntry($packages) . '];' . PHP_EOL, $source, 1, $count);
+        $updated = preg_replace('/\n\];\s*$/', PHP_EOL . $entry . '];' . PHP_EOL, $source, 1, $count);
 
         if (1 !== $count || ! \is_string($updated)) {
             return false;
@@ -71,8 +108,7 @@ final readonly class DevkitConfigWriter
         return false !== file_put_contents($path, $updated);
     }
 
-    /** @param array<string, string> $packages */
-    private function newFile(array $packages): string
+    private function newFile(string $entries): string
     {
         return '<?php' . PHP_EOL
             . PHP_EOL
@@ -86,7 +122,7 @@ final readonly class DevkitConfigWriter
             . ' */' . PHP_EOL
             . PHP_EOL
             . 'return [' . PHP_EOL
-            . $this->toolsEntry($packages)
+            . $entries
             . '];' . PHP_EOL;
     }
 

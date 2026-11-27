@@ -60,6 +60,16 @@ final class MigrationService
     }
 
     /**
+     * Opt the project into its root tool configs (devkit.php → root_configs).
+     *
+     * @since 1.2.1
+     */
+    public function enableRootConfigs(MigrationReport $report): bool
+    {
+        return $this->configWriter->enableRootConfigs($report->projectRoot);
+    }
+
+    /**
      * Remove redundant packages from composer.json require-dev.
      *
      * @return list<string> Package names actually removed.
