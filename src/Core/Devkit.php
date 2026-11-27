@@ -35,7 +35,7 @@ use SplFileInfo;
  */
 final class Devkit
 {
-    private const string VERSION = '1.2.1';
+    private const string VERSION = '1.2.2';
 
     private const string NO_PROVISION_VARIABLE = 'KCODE_NO_PROVISION';
 

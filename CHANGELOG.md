@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+---
+
+## [1.2.2] — 2026-11-27
+
+The generated PHPStan config no longer stops projects that lack `src/Contract`.
+
 ### Fixed
 
 - PHPStan exclusions are optional (`- ../src/Contract (?)`). PHPStan 2 rejects an excluded path that does not exist, so the default `exclude_dirs` stopped the analysis of every project without `src/Contract`; such projects had to set `'exclude_dirs' => []`.
@@ -176,7 +182,8 @@ First tagged release of the CLI toolchain. It combines the initial feature set (
 
 ---
 
-[Unreleased]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.3...v1.1.4

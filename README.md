@@ -535,7 +535,7 @@ make release
 # Manual
 composer install
 php -d phar.readonly=0 bin/build-phar.php
-php build/kcode.phar --version    # → KaririCode Devkit 1.2.1
+php build/kcode.phar --version    # → KaririCode Devkit 1.2.2
 
 # Install globally
 sudo mv build/kcode.phar /usr/local/bin/kcode
