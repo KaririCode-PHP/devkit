@@ -8,6 +8,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- PHPStan exclusions are optional (`- ../src/Contract (?)`). PHPStan 2 rejects an excluded path that does not exist, so the default `exclude_dirs` stopped the analysis of every project without `src/Contract`; such projects had to set `'exclude_dirs' => []`.
+
 ---
 
 ## [1.2.1] — 2026-11-26

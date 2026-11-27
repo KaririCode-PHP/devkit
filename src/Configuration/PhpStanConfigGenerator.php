@@ -35,10 +35,12 @@ final class PhpStanConfigGenerator implements ConfigGenerator
             $context->relativeSourceDirs(),
         ));
 
+        // "(?)" marks an entry optional: PHPStan 2 rejects an excluded path
+        // that does not exist, and the default src/Contract often does not.
         $excludes = '';
         if ([] !== $context->excludeDirs) {
             $items = implode("\n", array_map(
-                static fn (string $d): string => "        - ../{$d}",
+                static fn (string $d): string => "        - ../{$d} (?)",
                 $context->excludeDirs,
             ));
             $excludes = <<<NEON

@@ -73,7 +73,7 @@ final class PhpStanConfigGeneratorTest extends TestCase
     {
         $output = $this->generator->generate($this->makeContext(excludeDirs: ['src/Contract']));
         $this->assertStringContainsString('excludePaths:', $output);
-        $this->assertStringContainsString('- ../src/Contract', $output);
+        $this->assertStringContainsString('- ../src/Contract (?)', $output);
     }
 
     #[Test]
