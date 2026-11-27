@@ -10,6 +10,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ---
 
+## [1.2.1] — 2026-11-26
+
+Root tool configs no longer override the generated ones unless the project opts in. With 1.2.0, stale root configs left in migrated components replaced the generated rules and failed `kcode quality`.
+
+### Added
+
+- **`devkit.php` → `root_configs`** (bool, default `false`): `true` makes a committed `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `psalm.xml(.dist)`, `.php-cs-fixer(.dist).php` or `rector.php` win over the generated file (ADR-009, amended).
+
+### Changed
+
+- `kcode migrate --keep-configs` also writes `'root_configs' => true` to `devkit.php`, so a KaririCode Spec V4.3.3 §31 component still keeps its gates with one command.
+- `kcode init` lists the root configs in use when `root_configs` is on, instead of reporting them as redundant.
+- README, ADR-009, SPEC-001/002/003 (1.2.1) updated.
+
+### Fixed
+
+- Root config precedence (1.2.0) applied without an opt-in: a stale `.php-cs-fixer.php` replaced the generated rules and broke `kcode quality` in kariricode/normalizer and kariricode/validator. The generated `.kcode/` configs are the default again; projects that keep root configs on purpose set `'root_configs' => true` or run `kcode migrate --keep-configs`.
+
+---
+
 ## [1.2.0] — 2026-11-25
 
 Components no longer carry QA dependencies or Docker files: a globally installed `kcode` provisions the toolchain on demand and runs it on the host or in one generated PHP container.
@@ -152,7 +172,8 @@ First tagged release of the CLI toolchain. It combines the initial feature set (
 
 ---
 
-[Unreleased]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/KaririCode-PHP/devkit/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/KaririCode-PHP/devkit/compare/v1.1.2...v1.1.3

@@ -175,7 +175,7 @@ final class ProvisioningTest extends KcodeTestCase
     {
         $result = $this->kcode(['--version']);
 
-        $this->assertSame('1.2.0', Devkit::version());
+        $this->assertSame('1.2.1', Devkit::version());
         $this->assertStringContainsString('KaririCode Devkit', $result['stdout']);
         $this->assertStringContainsString(Devkit::version(), $result['stdout']);
     }
