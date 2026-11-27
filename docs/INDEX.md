@@ -16,15 +16,15 @@ Documentation for the **kariricode/devkit** package — the unified quality tool
 | [ADR-006](adr/ADR-006-immutable-value-objects.md) | Immutable Value Objects for Tool Results | Accepted |
 | [ADR-007](adr/ADR-007-container-runtime.md) | Container Runtime Generated into `.kcode/docker/` | Accepted |
 | [ADR-008](adr/ADR-008-on-demand-provisioning.md) | On-Demand Toolchain Provisioning for a Global `kcode` | Accepted |
-| [ADR-009](adr/ADR-009-root-config-precedence.md) | Root-Level Tool Configs Take Precedence | Accepted |
+| [ADR-009](adr/ADR-009-root-config-precedence.md) | Root-Level Tool Configs Take Precedence (opt-in since 1.2.1) | Accepted, amended |
 
 ## Specifications
 
 | Spec | Title | Version |
 |---|---|---|
-| [SPEC-001](spec/SPEC-001-project-detection.md) | Project Detection and Configuration Merging | 1.2.0 |
-| [SPEC-002](spec/SPEC-002-cli-interface.md) | CLI Command Interface and Execution Pipeline | 1.2.0 |
-| [SPEC-003](spec/SPEC-003-tool-runner.md) | Tool Runner Abstraction and Process Execution | 1.2.0 |
+| [SPEC-001](spec/SPEC-001-project-detection.md) | Project Detection and Configuration Merging | 1.2.1 |
+| [SPEC-002](spec/SPEC-002-cli-interface.md) | CLI Command Interface and Execution Pipeline | 1.2.1 |
+| [SPEC-003](spec/SPEC-003-tool-runner.md) | Tool Runner Abstraction and Process Execution | 1.2.1 |
 
 ## Quick Navigation
 

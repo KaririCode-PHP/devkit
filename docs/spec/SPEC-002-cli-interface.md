@@ -1,8 +1,8 @@
 # SPEC-002: CLI Command Interface and Execution Pipeline
 
-**Version:** 1.2.0
+**Version:** 1.2.1
 **Status:** Normative
-**Date:** 2025-02-28 (revised 2026-11-25)
+**Date:** 2025-02-28 (revised 2026-11-26)
 **Author:** Walmir Silva
 
 ## 1. Purpose
@@ -72,7 +72,7 @@ Exit codes follow Unix conventions: `0` = success, `1` = tool failure, `127` = b
 |---|---|
 | `--dry-run` or `--check` | Show findings without making changes |
 | `-n` or `--no-interaction` | Apply all removals without prompting |
-| `--keep-configs` | Keep root tool configs (KaririCode Spec V4.3.3 §31); superseded tool configs are still removed (since 1.2.0) |
+| `--keep-configs` | Keep root tool configs (KaririCode Spec V4.3.3 §31) and set `'root_configs' => true` in devkit.php (since 1.2.1); superseded tool configs are still removed (since 1.2.0) |
 
 #### up / down / shell / exec / ps / logs (since 1.2.0)
 

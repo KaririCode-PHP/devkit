@@ -1,7 +1,7 @@
 # ADR-009: Root-Level Tool Configs Take Precedence
 
-**Status:** Accepted
-**Date:** 2026-11-25
+**Status:** Accepted — amended in 1.2.1 (opt-in)
+**Date:** 2026-11-25 (amended 2026-11-26)
 **Deciders:** Walmir Silva
 **Context:** KaririCode Framework Devkit v1.2.0
 
@@ -50,3 +50,30 @@ The binaries still come from `.kcode/vendor/bin/`, so a V4.3.3 component keeps i
 - ADR-005: Centralized `.kcode/` Directory Convention
 - KaririCode Spec V4.3.3 §29.1, §31
 - kariricode/property-inspector ADR-007 — Quality Toolchain and Supply Chain of Spec V4.3.3
+
+## Amendment — v1.2.1: precedence is opt-in
+
+**Observed after the 1.2.0 release.** Components fetch `releases/latest/download/kcode.phar` in CI. Two of them still carried a root `.php-cs-fixer.php` from before they moved to kcode; kcode 1.1.x ignored it, so it was dead. With 1.2.0 it became live:
+
+| Component | Commit | `kcode quality` with 1.2.0 | With the generated config |
+|---|---|---|---|
+| kariricode/normalizer | `0831f96` (main) | cs-fixer fails (`IntToStringRule.php`, `FloatToStringRule.php`, `NormalizerServiceProvider.php`) | all 4 tools pass |
+| kariricode/validator | `5e29a6b` (main) | cs-fixer fails (`SlugRule.php`) | all 4 tools pass |
+
+A root config cannot be told apart from a stale one by looking at it. A minor release must not change which rules run.
+
+**Decision.** Root configs win only when the project opts in:
+
+```php
+// devkit.php
+return [
+    'root_configs' => true,
+];
+```
+
+- Default (`false`): the generated `.kcode/` configs, as in 1.1.x. Root configs are reported as redundant by `kcode init` and removed by `kcode migrate`.
+- `kcode migrate --keep-configs` keeps the root tool configs **and** writes `'root_configs' => true`, so a V4.3.3 component still adopts kcode with one command.
+- With the opt-in, `kcode init` lists the root configs in use instead of reporting them as redundant.
+
+The precedence order in the table above is unchanged.
+

@@ -1,8 +1,8 @@
 # SPEC-001: Project Detection and Configuration Merging
 
-**Version:** 1.2.0
+**Version:** 1.2.1
 **Status:** Normative
-**Date:** 2025-02-28 (revised 2026-11-25)
+**Date:** 2025-02-28 (revised 2026-11-26)
 **Author:** Walmir Silva
 
 ## 1. Purpose
@@ -160,6 +160,10 @@ Stored as `ProjectContext::$kaririCodeComponent`. Components are provisioned on 
 | `ports` | list<string> | `[]` |
 | `services` | array<string, string\|array> | `[]` — sidecars: image name or Compose service |
 | `service` | array<string, mixed> | `[]` — raw Compose keys merged into the php service (maps merge, lists append, scalars replace) |
+
+#### 4.3.13 Root Configs Opt-in (since 1.2.1)
+
+`devkit.php` → `root_configs` (bool, default `false`) is stored as `ProjectContext::$rootConfigs`. When `true`, runners use committed root tool configs (SPEC-003 §4.5); otherwise the generated `.kcode/` configs.
 
 ## 5. DevkitConfig
 

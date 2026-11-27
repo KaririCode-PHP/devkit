@@ -137,7 +137,7 @@ composer update            # drop the removed packages from composer.lock and ve
 kcode quality              # provisions .kcode/ and runs the pipeline
 ```
 
-Components that keep root configs under KaririCode Spec V4.3.3 §31 use `kcode migrate --keep-configs`.
+Components that keep root configs under KaririCode Spec V4.3.3 §31 use `kcode migrate --keep-configs`, which also sets `'root_configs' => true` in `devkit.php`.
 
 ---
 
@@ -200,7 +200,7 @@ kcode migrate --keep-configs    # Keep root tool configs (Spec V4.3.3 §31)
 | QA tools in `require-dev` | PHPUnit, PHPStan (+ extensions), PHP-CS-Fixer, Rector, Psalm (+ PHPUnit plugin) | Removed (installed into `.kcode/vendor/`) |
 | Superseded QA tools | PHP_CodeSniffer, PHP Insights, Security Checker, PHPMD, phpcpd, ECS | Removed |
 | Test-support libraries | Mockery, Infection, ParaTest, prophecy-phpunit, bypass-finals | Moved to `devkit.php` → `tools` |
-| Root configs | `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `.php-cs-fixer(.dist).php`, `rector.php`, `psalm.xml(.dist)` | Removed unless `--keep-configs` |
+| Root configs | `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `.php-cs-fixer(.dist).php`, `rector.php`, `psalm.xml(.dist)` | Removed, or kept with `--keep-configs` (which enables `root_configs`) |
 | Superseded configs | `phpcs.xml`, `phpinsights.php`, `phpmd.xml`, `ecs.php`, … | Removed |
 | Caches | `.phpunit.cache`, `.phpstan`, `.php-cs-fixer.cache`, `.psalm`, `.phpcs-cache`, `coverage-report-html/` | Removed |
 | Composer scripts | Calls to `phpunit`, `phpstan`, `psalm`, `php-cs-fixer`, `phpcs`, `rector`, `infection`, … | Rewritten to `kcode` commands |
@@ -338,9 +338,11 @@ kcode down
 | Test directories | `autoload-dev.psr-4` values |
 | Test suites | Standard subdirs: `Unit/`, `Integration/`, `Conformance/`, `Functional/` |
 
-### Root configs take precedence
+### Root configs (opt-in)
 
-When the project commits `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `psalm.xml(.dist)`, `.php-cs-fixer(.dist).php` or `rector.php`, kcode runs the tool with that file; otherwise with the generated one. The binaries always come from `.kcode/vendor/`. This keeps components under KaririCode Spec V4.3.3 §31 on their own gates. See [ADR-009](docs/adr/ADR-009-root-config-precedence.md).
+By default kcode runs every tool with the generated `.kcode/` config, even when the project still has root configs. With `'root_configs' => true` in `devkit.php`, a committed `phpunit.xml(.dist)`, `phpstan.neon(.dist)`, `psalm.xml(.dist)`, `.php-cs-fixer(.dist).php` or `rector.php` wins instead; the binaries still come from `.kcode/vendor/`. This keeps components under KaririCode Spec V4.3.3 §31 on their own gates. `kcode migrate --keep-configs` sets the key. See [ADR-009](docs/adr/ADR-009-root-config-precedence.md).
+
+1.2.0 applied root configs without the opt-in; stale root configs left in migrated components (for example `.php-cs-fixer.php` in kariricode/normalizer and kariricode/validator) then replaced the generated rules and failed `kcode quality`. 1.2.1 restored the generated configs as the default.
 
 ### Project overrides via `devkit.php`
 
@@ -394,6 +396,7 @@ Changes apply on the next command — no manual `kcode init` needed inside compo
 | `cs_fixer_rules` | `array<string, mixed>` | KaririCode standard | **Merge** (your rules win) |
 | `rector_sets` | `list<string>` | KaririCode standard | Replace |
 | `tools` | `array<string, string>` | PHPUnit, PHPStan, PHP-CS-Fixer, Rector, Psalm | **Merge** (short names or package names) |
+| `root_configs` | `bool` | `false` | Replace — `true` makes committed root tool configs win |
 | `docker.enabled` | `bool` | `false` | Replace |
 | `docker.php_version` | `string` | `php_version` | Replace |
 | `docker.image` | `?string` | `null` (build `.kcode/docker/Dockerfile`) | Replace |
@@ -493,7 +496,7 @@ Strict unidirectional flow. Commands call the `Devkit` façade. Runners and gene
 | Immutable value objects | ARFA 1.3 compliant | [ADR-006](docs/adr/ADR-006-immutable-value-objects.md) |
 | Generated container runtime | One Docker definition for every component | [ADR-007](docs/adr/ADR-007-container-runtime.md) |
 | On-demand provisioning | A global kcode needs no per-project setup | [ADR-008](docs/adr/ADR-008-on-demand-provisioning.md) |
-| Root configs take precedence | Spec V4.3.3 §31 components keep their gates | [ADR-009](docs/adr/ADR-009-root-config-precedence.md) |
+| Root configs on opt-in (`root_configs`) | Spec V4.3.3 §31 components keep their gates; stale root configs cannot override | [ADR-009](docs/adr/ADR-009-root-config-precedence.md) |
 
 ### Specifications
 
@@ -532,7 +535,7 @@ make release
 # Manual
 composer install
 php -d phar.readonly=0 bin/build-phar.php
-php build/kcode.phar --version    # → KaririCode Devkit 1.2.0
+php build/kcode.phar --version    # → KaririCode Devkit 1.2.1
 
 # Install globally
 sudo mv build/kcode.phar /usr/local/bin/kcode

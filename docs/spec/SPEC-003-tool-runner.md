@@ -1,8 +1,8 @@
 # SPEC-003: Tool Runner Abstraction and Process Execution
 
-**Version:** 1.2.0
+**Version:** 1.2.1
 **Status:** Normative
-**Date:** 2025-02-28 (revised 2026-11-25)
+**Date:** 2025-02-28 (revised 2026-11-26)
 **Author:** Walmir Silva
 
 ## 1. Purpose
@@ -115,9 +115,9 @@ Composer is typically global. The runner overrides `binary()` to check global PA
 
 This inverts the standard Tier 2 → Tier 3 order because `vendor/bin/composer` rarely exists.
 
-### 4.5 Configuration Precedence (since 1.2.0)
+### 4.5 Configuration Precedence (since 1.2.0, opt-in since 1.2.1)
 
-`AbstractToolRunner::configFile($generated, ...$rootCandidates)` returns the first root candidate that exists, else `.kcode/$generated` (ADR-009):
+`AbstractToolRunner::configFile($generated, ...$rootCandidates)` returns `.kcode/$generated` unless `ProjectContext::$rootConfigs` is `true` (devkit.php → `root_configs`); then it returns the first root candidate that exists, falling back to `.kcode/$generated` (ADR-009):
 
 | Runner | Root candidates |
 |---|---|
